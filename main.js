@@ -187,9 +187,9 @@
     };
     // Enable the toggle button during music playback
     toggleSourceBtn.disabled = false;
-    // Initialise button label to reflect that the mic is currently muted
+    // Update label to reflect that we are currently recording the song
     const label = toggleSourceBtn.querySelector('.btn-label');
-    if (label) label.textContent = 'Mic';
+    if (label) label.textContent = 'Chanson';
 
     // We are now recording the song (mic muted)
     recordingSource = 'song';
@@ -214,6 +214,9 @@
     recordedChunks = [];
     recordingStartTime = Date.now();
     recordingSource = 'mic';
+    // Show that we are currently recording the mic
+    const label = toggleSourceBtn.querySelector('.btn-label');
+    if (label) label.textContent = 'Mic';
     // Create audio context and nodes
     audioContext = new (window.AudioContext || window.webkitAudioContext)();
     // Microphone source from the camera stream
@@ -320,7 +323,8 @@
     recordedVideo.controls = true;
     recordedVideo.src = url;
     recordedVideo.classList.add('recorded-video');
-    recordedVideo.style.display = 'none';
+    // Use the hidden attribute to hide the video until the user expands the item.
+    recordedVideo.hidden = true;
     recordedVideo.addEventListener('loadedmetadata', () => {
       try {
         if (recordedVideo.videoWidth > recordedVideo.videoHeight) {
@@ -333,12 +337,15 @@
       }
     });
     item.appendChild(recordedVideo);
-    // Clicking on the item toggles the visibility of the video and controls playback
+    // Clicking on the item toggles the video element visibility and controls playback
     item.addEventListener('click', () => {
-      const hidden = recordedVideo.style.display === 'none';
-      recordedVideo.style.display = hidden ? 'block' : 'none';
-      if (!hidden) {
-        // When hiding, pause and reset the video
+      const nowHidden = recordedVideo.hidden;
+      // If the video is currently hidden, show it and start playing
+      if (nowHidden) {
+        recordedVideo.hidden = false;
+      } else {
+        // If visible, hide and reset playback
+        recordedVideo.hidden = true;
         recordedVideo.pause();
         recordedVideo.currentTime = 0;
       }
@@ -392,17 +399,18 @@
     const label = toggleSourceBtn.querySelector('.btn-label');
     // Toggle between recording the song and the mic based on current state.
     if (recordingSource === 'song') {
-      // Currently recording song; switch to mic
+      // We were recording the song; switch to the microphone
       microGain.gain.value = 1;
       songGain.gain.value = 0;
       recordingSource = 'mic';
-      if (label) label.textContent = 'Chanson';
+      // Update label to indicate the active source
+      if (label) label.textContent = 'Mic';
     } else {
-      // Currently recording mic; switch to song
+      // We were recording the microphone; switch to the song
       microGain.gain.value = 0;
       songGain.gain.value = 1;
       recordingSource = 'song';
-      if (label) label.textContent = 'Mic';
+      if (label) label.textContent = 'Chanson';
     }
   }
 

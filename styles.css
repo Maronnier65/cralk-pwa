@@ -186,6 +186,9 @@ html {
    selects a recording. Always preserve aspect ratio and limit the height so
    they fit comfortably on the screen. */
 .recorded-video {
+  /* Recorded videos always preserve their aspect ratio and never exceed the
+     available width or a 60vh height. The element itself is hidden by
+     default via the hidden attribute set by JavaScript. */
   width: 100%;
   height: auto;
   max-height: 60vh;
@@ -193,6 +196,11 @@ html {
   border-radius: 8px;
   background: #000;
   margin-top: 0.5rem;
+}
+
+/* Hide any video element inside a recording item until the user expands it. */
+.recording-item video {
+  display: none;
 }
 
 /* Orientation classes are retained for possible future styling but are not
