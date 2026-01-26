@@ -9,7 +9,7 @@
 // users receive the latest assets. Bump the version if index.html,
 // main.js, styles.css or other static files are modified.
 // Bump the cache version to force refresh after significant updates.
-const CACHE_NAME = 'cralk-cache-v7';
+const CACHE_NAME = 'cralk-cache-v8';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',

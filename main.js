@@ -46,6 +46,10 @@
   // total duration and remaining time
   let songPlaying = false;
 
+  // Track which source is currently being recorded ('song' or 'mic'). This
+  // avoids relying on gain values directly when toggling.
+  let recordingSource = 'mic';
+
   // ----- Utility functions -----
   /**
    * Format a duration in seconds as MM:SS.
@@ -186,6 +190,9 @@
     // Initialise button label to reflect that the mic is currently muted
     const label = toggleSourceBtn.querySelector('.btn-label');
     if (label) label.textContent = 'Mic';
+
+    // We are now recording the song (mic muted)
+    recordingSource = 'song';
   }
 
   /**
@@ -206,6 +213,7 @@
     // Reset state
     recordedChunks = [];
     recordingStartTime = Date.now();
+    recordingSource = 'mic';
     // Create audio context and nodes
     audioContext = new (window.AudioContext || window.webkitAudioContext)();
     // Microphone source from the camera stream
@@ -307,12 +315,12 @@
     info.textContent = `${selectedFileName} — ${formatTime(durationSec)}`;
     info.classList.add('recording-info');
     item.appendChild(info);
-    // Video element
+    // Video element (hidden by default) and orientation detection
     const recordedVideo = document.createElement('video');
     recordedVideo.controls = true;
     recordedVideo.src = url;
     recordedVideo.classList.add('recorded-video');
-    // Determine orientation after metadata is loaded
+    recordedVideo.style.display = 'none';
     recordedVideo.addEventListener('loadedmetadata', () => {
       try {
         if (recordedVideo.videoWidth > recordedVideo.videoHeight) {
@@ -325,6 +333,16 @@
       }
     });
     item.appendChild(recordedVideo);
+    // Clicking on the item toggles the visibility of the video and controls playback
+    item.addEventListener('click', () => {
+      const hidden = recordedVideo.style.display === 'none';
+      recordedVideo.style.display = hidden ? 'block' : 'none';
+      if (!hidden) {
+        // When hiding, pause and reset the video
+        recordedVideo.pause();
+        recordedVideo.currentTime = 0;
+      }
+    });
     // Download link
     const downloadLink = document.createElement('a');
     downloadLink.href = url;
@@ -372,14 +390,18 @@
   function toggleSource() {
     if (!isRecording) return;
     const label = toggleSourceBtn.querySelector('.btn-label');
-    // If mic is currently muted (song is recorded), unmute mic and mute song
-    if (microGain.gain.value === 0) {
+    // Toggle between recording the song and the mic based on current state.
+    if (recordingSource === 'song') {
+      // Currently recording song; switch to mic
       microGain.gain.value = 1;
       songGain.gain.value = 0;
+      recordingSource = 'mic';
       if (label) label.textContent = 'Chanson';
     } else {
+      // Currently recording mic; switch to song
       microGain.gain.value = 0;
       songGain.gain.value = 1;
+      recordingSource = 'song';
       if (label) label.textContent = 'Mic';
     }
   }

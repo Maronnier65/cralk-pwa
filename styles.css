@@ -182,27 +182,23 @@ html {
   margin: 1rem;
 }
 
+/* Recorded videos are hidden by default and will be displayed when the user
+   selects a recording. Always preserve aspect ratio and limit the height so
+   they fit comfortably on the screen. */
 .recorded-video {
   width: 100%;
+  height: auto;
   max-height: 60vh;
   object-fit: contain;
   border-radius: 8px;
   background: #000;
-  margin-top: 1rem;
+  margin-top: 0.5rem;
 }
 
-/* Adjust the orientation of recorded videos to preserve aspect ratio */
-.recorded-video.portrait {
-  /* For portrait videos, limit height and let width adapt */
-  width: auto;
-  height: 60vh;
-}
-
-.recorded-video.landscape {
-  /* For landscape videos, use full width and adjust height automatically */
-  width: 100%;
-  height: auto;
-}
+/* Orientation classes are retained for possible future styling but are not
+   currently used to size the video differently. */
+.recorded-video.portrait {}
+.recorded-video.landscape {}
 
 .download-link {
   display: block;
@@ -215,6 +211,11 @@ html {
 .recording-item {
   width: 100%;
   margin-bottom: 1rem;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(6px);
 }
 
 .recording-info {
