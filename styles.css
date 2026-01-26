@@ -59,15 +59,14 @@ html {
   pointer-events: none;
 }
 
-.top-controls,
+  .top-controls,
   .bottom-controls {
-  display: flex;
-  align-items: center;
-  /* Evenly distribute available space between button groups and the record button */
-  justify-content: space-evenly;
-  /* Ensure the bottom control bar intercepts pointer events even though the overlay is non-interactive */
-  pointer-events: auto;
-}
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    pointer-events: auto;
+  }
 
 .icon-button,
 .record-button {
@@ -122,14 +121,49 @@ html {
   background: red;
 }
 
+/* Display selected file name in a semi‑transparent bar at the top */
 #file-info {
   position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 6rem;
-  text-align: center;
+  top: 1rem;
+  left: 0.5rem;
+  right: 0.5rem;
+  padding: 0.4rem 0.6rem;
+  background: rgba(0, 0, 0, 0.6);
+  color: #ffffff;
   font-size: 0.9rem;
-  color: var(--accent-color);
+  border-radius: 8px;
+  text-align: center;
+  backdrop-filter: blur(8px);
+}
+
+/* Timer showing song duration and remaining time */
+#song-timer {
+  position: absolute;
+  top: 3.2rem;
+  right: 0.5rem;
+  padding: 0.3rem 0.5rem;
+  background: rgba(0, 0, 0, 0.6);
+  color: #ffffff;
+  font-size: 0.8rem;
+  border-radius: 8px;
+  display: none; /* hidden until a song is selected */
+  backdrop-filter: blur(8px);
+}
+
+/* Countdown overlay for pre‑song countdown */
+.countdown-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  font-size: 5rem;
+  color: #ffffff;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 10;
 }
 
 /* Recorded video and download area */
@@ -164,6 +198,19 @@ html {
   margin-top: 0.5rem;
   color: var(--accent-color);
   text-decoration: none;
+}
+
+/* Gallery recording items */
+.recording-item {
+  width: 100%;
+  margin-bottom: 1rem;
+}
+
+.recording-info {
+  font-size: 0.85rem;
+  color: #ffffff;
+  margin-bottom: 0.4rem;
+  text-align: left;
 }
 
 /* ----- Multi‑screen navigation ----- */

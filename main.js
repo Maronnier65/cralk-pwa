@@ -1,157 +1,185 @@
 /*
- * main.js
+ * main.js – CRALK PWA v6
  *
- * This script handles the core logic of the CRALK PWA. It allows users to
- * select an audio file from their local files, displays basic information
- * about the selected file, and plays the audio using the HTML5 <audio> element.
- * It also registers the service worker to enable installation as a PWA.
- */
-
-/*
- * This version of main.js extends the original CRALK PWA to support
- * recording a video using the device camera and microphone while
- * synchronising the recorded footage with a selected audio file. It uses
- * MediaStream APIs and the Web Audio API to merge the audio from the
- * uploaded song with the microphone input so that the resulting
- * recording contains both the music and any vocal performance. The
- * MediaStream constructor allows us to combine tracks from different
- * streams into one【988212847256470†L210-L213】, and captureStream() on
- * media elements produces a stream from the content being played【28336664549183†L185-L209】.
- */
-
-/**
- * main.js
- *
- * This script provides the core logic for the camera‑first CRALK PWA. It
- * displays the device camera as soon as the page loads and overlays a
- * handful of controls to switch cameras, toggle the microphone, select a
- * background song, and start/stop a synchronized recording. The recorded
- * video contains the selected music track mixed with optional ambient
- * microphone audio and is presented back to the user with a download link.
+ * This script implements a camera‑first recording interface that allows users
+ * to capture video from the device camera while recording either the
+ * microphone or a selected music track. The recording follows a fixed
+ * protocol: the first few seconds capture ambient sound from the mic,
+ * followed by a countdown and then the selected song replaces the mic in
+ * the recorded audio. During recording, a toggle button lets the user
+ * switch which source (mic or song) is written to the video without
+ * interrupting playback. Up to ten recordings are retained in a gallery
+ * accessible via a horizontal swipe. A timer shows the total length of
+ * the selected song and counts down the remaining time during playback.
  */
 
 (function () {
-  // UI element references
+  // ----- Element references -----
   const fileInput = document.getElementById('file-input');
   const fileInfo = document.getElementById('file-info');
+  const songTimer = document.getElementById('song-timer');
+  const countdownOverlay = document.getElementById('countdown-overlay');
   const audioPlayer = document.getElementById('audio-player');
   const cameraPreview = document.getElementById('camera-preview');
   const switchCameraBtn = document.getElementById('switch-camera');
-  const toggleMicBtn = document.getElementById('toggle-mic');
   const recordButton = document.getElementById('record-button');
-  const playMusicBtn = document.getElementById('play-music');
-  // Container in the gallery for recorded videos
+  const toggleSourceBtn = document.getElementById('toggle-source');
   const recordingsContainer = document.getElementById('gallery-recordings');
-
-  // Reference to the app container for page switching
   const appContainer = document.getElementById('app-container');
 
-  // State variables
-  let currentUrl = null; // object URL for the selected audio file
-  let cameraStream = null; // stream from getUserMedia
-  let currentFacing = 'environment'; // default to rear camera for better quality
-  let micEnabled = true; // whether the microphone should be included
-  let isRecording = false; // whether a recording is currently in progress
-  let mediaRecorder = null;
-  let recordedChunks = [];
-  let audioContext = null;
-  let audioSource = null;
-  let destinationNode = null;
-  // Track music play state; relies on audioPlayer.paused property
-  let musicStarted = false;
+  // ----- State variables -----
+  let cameraStream = null;            // MediaStream from getUserMedia (video+mic)
+  let currentFacing = 'environment';  // Which camera to use (rear by default)
+  let isRecording = false;            // Are we currently recording?
+  let mediaRecorder = null;           // MediaRecorder instance
+  let recordedChunks = [];            // Buffers for the current recording
+  let audioContext = null;            // Web Audio context
+  let microSource, songSource;        // MediaStreamSource nodes
+  let microGain, songGain;            // Gain nodes for cross‑fading
+  let destinationNode = null;         // MediaStreamDestination for combined audio
+  let preSongTimeout = null;          // Timeout to trigger countdown/song
+  let timerInterval = null;           // Interval to update the song timer
+  let recordingStartTime = null;      // Timestamp when recording began
+  let selectedFileName = '';          // Name of the chosen audio file
 
-  // Disable music playback button until a song is selected
-  playMusicBtn.disabled = true;
+  // ----- Utility functions -----
+  /**
+   * Format a duration in seconds as MM:SS.
+   * @param {number} seconds
+   * @returns {string}
+   */
+  function formatTime(seconds) {
+    const m = Math.floor(seconds / 60);
+    const s = Math.floor(seconds % 60);
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  }
 
   /**
-   * Initialize the camera preview using the current facing mode. Any
-   * existing camera stream is stopped before requesting a new one.
+   * Update the song timer display. Shows remaining time / total time.
+   */
+  function updateSongTimer() {
+    if (!audioPlayer.duration || isNaN(audioPlayer.duration)) {
+      songTimer.style.display = 'none';
+      return;
+    }
+    const remaining = Math.max(0, audioPlayer.duration - audioPlayer.currentTime);
+    songTimer.textContent = `${formatTime(remaining)} / ${formatTime(audioPlayer.duration)}`;
+    songTimer.style.display = 'block';
+  }
+
+  /**
+   * Initialise the camera stream based on the current facing mode.
    */
   async function initCamera() {
-    // Stop all existing tracks to free the camera/mic
+    // Stop any existing tracks
     if (cameraStream) {
       cameraStream.getTracks().forEach((track) => track.stop());
     }
     try {
-      const constraints = {
+      cameraStream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: currentFacing },
         audio: true,
-      };
-      cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
-      // Apply the stream to the video element
-      cameraPreview.srcObject = cameraStream;
-      // Enable/disable microphone track based on state
-      cameraStream.getAudioTracks().forEach((track) => {
-        track.enabled = micEnabled;
       });
+      cameraPreview.srcObject = cameraStream;
     } catch (err) {
-      console.error('Erreur lors de l\'initialisation de la caméra:', err);
-      alert(
-        "Impossible d'accéder à la caméra ou au micro. Vérifiez les autorisations du navigateur."
-      );
+      console.error('Erreur lors de l\'initialisation de la caméra :', err);
+      alert("Impossible d'accéder à la caméra ou au micro. Vérifiez les autorisations du navigateur.");
     }
   }
 
   /**
-   * Handle audio file selection. Create an object URL for the file so it can
-   * be played and display basic metadata to the user.
+   * Handle selection of an audio file. Displays its name and prepares the
+   * audio player. Enables the record button once a song is chosen.
    * @param {Event} event
    */
   function handleFileSelection(event) {
     const file = event.target.files[0];
     if (!file) {
+      selectedFileName = '';
       fileInfo.textContent = '';
+      songTimer.style.display = 'none';
+      recordButton.disabled = true;
+      toggleSourceBtn.disabled = true;
       audioPlayer.removeAttribute('src');
       return;
     }
-    // Clean up previous URL
-    if (currentUrl) {
-      URL.revokeObjectURL(currentUrl);
-      currentUrl = null;
+    selectedFileName = file.name;
+    // Revoke previous URL if needed
+    if (audioPlayer.src) {
+      URL.revokeObjectURL(audioPlayer.src);
     }
-    currentUrl = URL.createObjectURL(file);
-    audioPlayer.src = currentUrl;
+    const url = URL.createObjectURL(file);
+    audioPlayer.src = url;
     audioPlayer.load();
-    const sizeInMB = (file.size / (1024 * 1024)).toFixed(2);
-    fileInfo.textContent = `${file.name} — ${sizeInMB} MB`;
-
-    // Enable the record button when an audio file is selected
+    fileInfo.textContent = selectedFileName;
     recordButton.disabled = false;
-    // Reset music control button
-    playMusicBtn.disabled = false;
-    playMusicBtn.textContent = '▶︎';
+    toggleSourceBtn.disabled = true;
+    // When metadata is loaded, display the total duration
+    audioPlayer.onloadedmetadata = () => {
+      updateSongTimer();
+    };
   }
 
   /**
-   * Combine two audio streams into a single set of tracks using the Web
-   * Audio API. This function is based on a technique to merge multiple
-   * sources with adjustable gain【257458881368227†L30-L58】.
-   * @param {MediaStream} stream1 - The first audio stream (e.g., song).
-   * @param {MediaStream} stream2 - The second audio stream (e.g., mic).
-   * @returns {MediaStreamTrack[]} The merged audio tracks.
+   * Display a countdown overlay for the specified number of seconds. Returns
+   * a promise that resolves when the countdown completes.
+   * @param {number} seconds
+   * @returns {Promise<void>}
    */
-  function mergeAudioStreams(stream1, stream2) {
-    const context = new (window.AudioContext || window.webkitAudioContext)();
-    const source1 = context.createMediaStreamSource(stream1);
-    const source2 = context.createMediaStreamSource(stream2);
-    const destination = context.createMediaStreamDestination();
-    const gain1 = context.createGain();
-    const gain2 = context.createGain();
-    // Default volumes; adjust here if needed
-    gain1.gain.value = 0.7;
-    gain2.gain.value = 0.7;
-    source1.connect(gain1).connect(destination);
-    source2.connect(gain2).connect(destination);
-    return destination.stream.getAudioTracks();
+  function runCountdown(seconds) {
+    return new Promise((resolve) => {
+      let n = seconds;
+      countdownOverlay.style.display = 'flex';
+      countdownOverlay.textContent = n.toString();
+      const interval = setInterval(() => {
+        n -= 1;
+        if (n > 0) {
+          countdownOverlay.textContent = n.toString();
+        } else {
+          clearInterval(interval);
+          countdownOverlay.style.display = 'none';
+          resolve();
+        }
+      }, 1000);
+    });
   }
 
   /**
-   * Start a recording. Combines the camera video with the selected song and
-   * optionally the microphone audio into a single MediaStream. The
-   * MediaRecorder API encodes the stream to WebM, which is saved as a
-   * Blob. UI elements are updated to reflect the recording state.
+   * Start playback of the selected song and adjust gain nodes so that only
+   * the music is included in the recorded audio. Also sets up a timer to
+   * update the display and stops the recording when the song ends.
+   */
+  function startSong() {
+    if (!audioPlayer.src) return;
+    audioPlayer.currentTime = 0;
+    // When the song starts, mute the mic and unmute the song in the recorded
+    // stream. The song is always sent to the user via context.destination.
+    microGain.gain.value = 0;
+    songGain.gain.value = 1;
+    // Start playback
+    audioPlayer.play().catch((err) => console.warn('Erreur lecture :', err));
+    updateSongTimer();
+    if (timerInterval) clearInterval(timerInterval);
+    timerInterval = setInterval(updateSongTimer, 500);
+    // Stop recording automatically when the song finishes
+    audioPlayer.onended = () => {
+      if (isRecording) {
+        stopRecording();
+      }
+    };
+    // Enable the toggle button during music playback
+    toggleSourceBtn.disabled = false;
+    // Initialise button text to reflect that the mic is currently muted
+    toggleSourceBtn.textContent = 'Mic';
+  }
+
+  /**
+   * Begin a new recording following the fixed protocol. First records
+   * ambient mic audio, then after a delay and countdown switches to the
+   * selected song. Sets up the audio graph for cross‑fading.
    */
   async function startRecording() {
+    if (isRecording) return;
     if (!cameraStream) {
       alert('La caméra n\'est pas disponible.');
       return;
@@ -160,104 +188,121 @@
       alert('Veuillez d\'abord sélectionner une chanson.');
       return;
     }
-    // Reset recorded data
+    // Reset state
     recordedChunks = [];
-    // Prepare audio context and nodes
+    recordingStartTime = Date.now();
+    // Create audio context and nodes
     audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    audioSource = audioContext.createMediaElementSource(audioPlayer);
+    // Microphone source from the camera stream
+    const micStream = new MediaStream(cameraStream.getAudioTracks());
+    microSource = audioContext.createMediaStreamSource(micStream);
+    microGain = audioContext.createGain();
+    microGain.gain.value = 1;
+    microSource.connect(microGain);
+    // Song source from the audio element
+    songSource = audioContext.createMediaElementSource(audioPlayer);
+    songGain = audioContext.createGain();
+    songGain.gain.value = 0; // muted initially
+    songSource.connect(songGain);
+    // Always send the song to the user's speakers
+    songSource.connect(audioContext.destination);
+    // Combine both gains into a destination for the recorder
     destinationNode = audioContext.createMediaStreamDestination();
-    audioSource.connect(destinationNode);
-    audioSource.connect(audioContext.destination);
-    // Restart the song from the beginning
-    audioPlayer.currentTime = 0;
-    try {
-      await audioPlayer.play();
-      playMusicBtn.textContent = '⏸';
-    } catch (err) {
-      console.warn('Erreur lors de la lecture du fichier audio :', err);
-    }
-    // Determine which audio tracks to include
-    let mergedAudioTracks;
-    if (micEnabled) {
-      // Merge the song (destinationNode) with the mic from cameraStream
-      mergedAudioTracks = mergeAudioStreams(destinationNode.stream, cameraStream);
-    } else {
-      // Only use the song audio
-      mergedAudioTracks = destinationNode.stream.getAudioTracks();
-    }
-    // Get the single video track
-    const videoTracks = cameraStream.getVideoTracks();
-    // Combine tracks into a new MediaStream
-    const combinedStream = new MediaStream([...videoTracks, ...mergedAudioTracks]);
-    // Initialise MediaRecorder
+    microGain.connect(destinationNode);
+    songGain.connect(destinationNode);
+    // Construct combined stream from camera video and processed audio
+    const combinedStream = new MediaStream([
+      ...cameraStream.getVideoTracks(),
+      ...destinationNode.stream.getAudioTracks(),
+    ]);
     try {
       mediaRecorder = new MediaRecorder(combinedStream, {
         mimeType: 'video/webm;codecs=vp8,opus',
       });
-    } catch (err) {
-      console.warn('Type MIME non pris en charge, utilisation de la valeur par défaut.');
+    } catch (e) {
       mediaRecorder = new MediaRecorder(combinedStream);
     }
-    mediaRecorder.ondataavailable = (event) => {
-      if (event.data && event.data.size > 0) {
-        recordedChunks.push(event.data);
-      }
+    mediaRecorder.ondataavailable = (e) => {
+      if (e.data && e.data.size > 0) recordedChunks.push(e.data);
     };
     mediaRecorder.onstop = handleStop;
     mediaRecorder.start();
     isRecording = true;
-    // Update button appearance
+    // Update UI
     recordButton.classList.add('recording');
     recordButton.textContent = 'Stop';
+    fileInput.disabled = true;
+    toggleSourceBtn.disabled = true;
+    // After 5 seconds, start countdown and then begin the song
+    preSongTimeout = setTimeout(async () => {
+      await runCountdown(3);
+      startSong();
+    }, 5000);
   }
 
   /**
-   * Stop an ongoing recording and reset UI elements. The song playback
-   * pauses and the MediaRecorder is instructed to stop.
+   * Stop the current recording, clean up audio resources and UI, and
+   * finalise the MediaRecorder to create the recorded video.
    */
   function stopRecording() {
+    if (!isRecording) return;
+    // Cancel any pending song start or timers
+    if (preSongTimeout) {
+      clearTimeout(preSongTimeout);
+      preSongTimeout = null;
+    }
+    if (timerInterval) {
+      clearInterval(timerInterval);
+      timerInterval = null;
+    }
+    // Stop music playback and reset
+    audioPlayer.pause();
+    audioPlayer.currentTime = 0;
+    // Disable toggle while finalising
+    toggleSourceBtn.disabled = true;
+    // Reset record button
+    recordButton.classList.remove('recording');
+    recordButton.textContent = 'Rec';
+    fileInput.disabled = false;
+    // Stop MediaRecorder; handleStop will be invoked automatically
     if (mediaRecorder && mediaRecorder.state !== 'inactive') {
       mediaRecorder.stop();
     }
-    audioPlayer.pause();
-    audioPlayer.currentTime = 0;
-    playMusicBtn.textContent = '▶︎';
     isRecording = false;
-    recordButton.classList.remove('recording');
-    recordButton.textContent = 'Rec';
   }
 
   /**
-   * Assemble the recorded data into a Blob, create a video element for
-   * playback, and provide a download link. Previous recordings are
-   * appended to the gallery. Automatically switches to the gallery
-   * view when a new recording is saved.
+   * Handle the completion of a recording: assemble recorded chunks into a
+   * Blob, create a video element for playback, add metadata (name and
+   * duration), and insert it into the gallery. Also enforce a maximum
+   * number of saved recordings and switch the view to the gallery.
    */
   function handleStop() {
-    const blob = new Blob(recordedChunks, { type: mediaRecorder.mimeType || 'video/webm' });
+    const blob = new Blob(recordedChunks, {
+      type: mediaRecorder && mediaRecorder.mimeType ? mediaRecorder.mimeType : 'video/webm',
+    });
     const url = URL.createObjectURL(blob);
-    // Create a container for this recording
     const item = document.createElement('div');
+    item.classList.add('recording-item');
+    // Info bar: file name and duration
+    const info = document.createElement('div');
+    const durationSec = Math.round((Date.now() - recordingStartTime) / 1000);
+    info.textContent = `${selectedFileName} — ${formatTime(durationSec)}`;
+    info.classList.add('recording-info');
+    item.appendChild(info);
+    // Video element
     const recordedVideo = document.createElement('video');
     recordedVideo.controls = true;
     recordedVideo.src = url;
     recordedVideo.classList.add('recorded-video');
-    // Déterminer l'orientation du clip enregistré. Certains appareils retournent
-    // des flux vidéo pivotés (par ex. rotation de 90°) sans ajuster
-    // videoWidth/videoHeight, ce qui entraîne une lecture déformée. Pour
-    // améliorer la détection, on récupère d'abord les dimensions du flux via
-    // getSettings() lorsque c'est possible, puis on bascule sur les propriétés
-    // du <video> en cas d'échec. Enfin, on applique une classe CSS pour
-    // ajuster le rendu sans déformer le contenu.
+    // Determine orientation
     try {
       let width, height;
-      // Utiliser les settings de la piste vidéo pour obtenir la taille native
       if (cameraStream && cameraStream.getVideoTracks().length > 0) {
         const settings = cameraStream.getVideoTracks()[0].getSettings();
         width = settings.width;
         height = settings.height;
       }
-      // Si les settings ne sont pas disponibles, se replier sur l'élément vidéo
       if (!width || !height) {
         width = cameraPreview.videoWidth;
         height = cameraPreview.videoHeight;
@@ -273,20 +318,44 @@
       console.warn("Impossible de déterminer l'orientation de la vidéo", e);
     }
     item.appendChild(recordedVideo);
+    // Download link
     const downloadLink = document.createElement('a');
     downloadLink.href = url;
     downloadLink.download = 'cralk-recording.webm';
-    downloadLink.textContent = 'Télécharger la vidéo';
+    downloadLink.textContent = 'Télécharger';
     downloadLink.classList.add('download-link');
     item.appendChild(downloadLink);
+    // Insert into gallery and enforce a maximum of 10 recordings
     recordingsContainer.appendChild(item);
-    // After saving, switch to the gallery screen
+    while (recordingsContainer.children.length > 10) {
+      recordingsContainer.removeChild(recordingsContainer.firstChild);
+    }
+    // Switch to gallery view
     showGallery();
   }
 
   /**
-   * Toggle the camera facing mode between 'user' and 'environment' and
-   * reinitialise the stream.
+   * Toggle which audio source (mic or song) is recorded. This does not
+   * interrupt playback of the song. When toggled, the gain values for
+   * microphone and song are swapped.
+   */
+  function toggleSource() {
+    if (!isRecording) return;
+    // If mic is currently muted (song is recorded), unmute mic and mute song
+    if (microGain.gain.value === 0) {
+      microGain.gain.value = 1;
+      songGain.gain.value = 0;
+      toggleSourceBtn.textContent = 'Chanson';
+    } else {
+      microGain.gain.value = 0;
+      songGain.gain.value = 1;
+      toggleSourceBtn.textContent = 'Mic';
+    }
+  }
+
+  /**
+   * Switch the facing mode of the camera between user (front) and
+   * environment (rear) and reinitialise the stream.
    */
   function switchCamera() {
     currentFacing = currentFacing === 'user' ? 'environment' : 'user';
@@ -294,30 +363,23 @@
   }
 
   /**
-   * Toggle the inclusion of microphone audio. When disabled, the mic track
-   * is muted and the ambient sound will not be recorded.
+   * Slide to the gallery view by adding a class to the app container.
    */
-  function toggleMic() {
-    micEnabled = !micEnabled;
-    // Update track enabled state
-    if (cameraStream) {
-      cameraStream.getAudioTracks().forEach((track) => {
-        track.enabled = micEnabled;
-      });
-    }
-    // Optionally update the button appearance
-    if (micEnabled) {
-      toggleMicBtn.classList.remove('disabled');
-    } else {
-      toggleMicBtn.classList.add('disabled');
-    }
+  function showGallery() {
+    appContainer.classList.add('gallery-active');
   }
 
-  // Event listeners
+  /**
+   * Slide back to the recorder view by removing the gallery class.
+   */
+  function showRecorder() {
+    appContainer.classList.remove('gallery-active');
+  }
+
+  // ----- Event listeners -----
   fileInput.addEventListener('change', handleFileSelection);
   switchCameraBtn.addEventListener('click', switchCamera);
-  toggleMicBtn.addEventListener('click', toggleMic);
-  playMusicBtn.addEventListener('click', toggleMusic);
+  toggleSourceBtn.addEventListener('click', toggleSource);
   recordButton.addEventListener('click', () => {
     if (!isRecording) {
       startRecording();
@@ -325,24 +387,7 @@
       stopRecording();
     }
   });
-
-  /**
-   * Switch the view to the gallery screen by adding a class to the
-   * app container. The CSS rules will handle the sliding animation.
-   */
-  function showGallery() {
-    appContainer.classList.add('gallery-active');
-  }
-
-  /**
-   * Switch the view back to the recorder screen by removing the
-   * gallery-active class.
-   */
-  function showRecorder() {
-    appContainer.classList.remove('gallery-active');
-  }
-
-  // Swipe handling: detect horizontal swipes to change screens
+  // Swipe detection for switching screens
   let touchStartX = null;
   appContainer.addEventListener(
     'touchstart',
@@ -359,7 +404,6 @@
       if (touchStartX === null) return;
       const diffX = e.changedTouches[0].clientX - touchStartX;
       if (Math.abs(diffX) > 50) {
-        // Swipe left moves to gallery; swipe right returns to recorder
         if (diffX < 0) {
           showGallery();
         } else {
@@ -371,34 +415,14 @@
     { passive: true }
   );
 
-  // On page load, initialise the camera preview
+  // ----- Initialisation -----
   initCamera();
-
-  // Register the service worker for offline use and installation prompts
+  // Register service worker for offline capability and updates
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
       navigator.serviceWorker
         .register('/sw.js')
-        .catch((error) => {
-          console.error('Échec de l\'enregistrement du ServiceWorker :', error);
-        });
+        .catch((err) => console.error('Échec enregistrement ServiceWorker :', err));
     });
-  }
-
-  /**
-   * Toggle the playback of the selected music. If the audio is paused, start
-   * playing and update the button label; if it is playing, pause it and
-   * reset the icon. This allows the user to manually control when the
-   * background song starts or stops.
-   */
-  function toggleMusic() {
-    if (!audioPlayer.src) return;
-    if (audioPlayer.paused) {
-      audioPlayer.play();
-      playMusicBtn.textContent = '⏸';
-    } else {
-      audioPlayer.pause();
-      playMusicBtn.textContent = '▶︎';
-    }
   }
 })();

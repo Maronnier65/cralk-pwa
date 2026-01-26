@@ -8,7 +8,8 @@
 // Update the cache name whenever the application shell changes to ensure
 // users receive the latest assets. Bump the version if index.html,
 // main.js, styles.css or other static files are modified.
-const CACHE_NAME = 'cralk-cache-v2';
+// Bump the cache version to force refresh after significant updates.
+const CACHE_NAME = 'cralk-cache-v6';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
