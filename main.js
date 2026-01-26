@@ -340,11 +340,13 @@
     // Clicking on the item toggles the video element visibility and controls playback
     item.addEventListener('click', () => {
       const nowHidden = recordedVideo.hidden;
-      // If the video is currently hidden, show it and start playing
       if (nowHidden) {
+        // Show the video and start playing from the beginning
         recordedVideo.hidden = false;
+        recordedVideo.currentTime = 0;
+        recordedVideo.play().catch(() => {});
       } else {
-        // If visible, hide and reset playback
+        // Hide the video and reset playback
         recordedVideo.hidden = true;
         recordedVideo.pause();
         recordedVideo.currentTime = 0;
@@ -362,8 +364,12 @@
     while (recordingsContainer.children.length > 10) {
       recordingsContainer.removeChild(recordingsContainer.firstChild);
     }
-    // Switch to gallery view
+    // Switch to gallery view for a moment to ensure the list is updated
     showGallery();
+    // After inserting the item, immediately return to the recorder view to allow
+    // the user to start a new recording without a swipe gesture. Users can
+    // still access the gallery by swiping.
+    showRecorder();
 
     // Cleanup audio context and sources so a new recording can start
     try {
