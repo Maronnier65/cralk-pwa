@@ -22,24 +22,12 @@
         <!-- Recorder screen: displays the camera and controls -->
         <div class="screen recorder-screen">
           <video id="camera-preview" autoplay playsinline muted></video>
-          <!-- Overlay with all controls at the bottom -->
+          <!-- Overlay contains both top and bottom control bars -->
           <div class="overlay">
-            <div class="bottom-controls">
-              <!-- left: switch camera -->
-              <button id="switch-camera" class="icon-button" title="Basculer la caméra">
-                <span class="btn-label">Caméra</span>
-              </button>
-              <!-- centre: record -->
-              <button id="record-button" class="record-button" disabled>
-                <span class="btn-label">Rec</span>
-              </button>
-              <!-- toggle between mic and song during recording -->
-              <button id="toggle-source" class="icon-button" title="Basculer source audio" disabled>
-                <span class="btn-label">Mic</span>
-              </button>
-              <!-- choose a song -->
-              <label class="icon-button file-button" title="Choisir une chanson">
-                <span class="btn-label">Chanson</span>
+            <!-- Top bar: choose song, display name and timer -->
+            <div class="top-bar">
+              <label id="choose-song" class="top-button" title="Choisir une chanson">
+                <span class="top-icon">🎵</span>
                 <input
                   id="file-input"
                   type="file"
@@ -48,12 +36,22 @@
                   hidden
                 />
               </label>
+              <span id="file-info" class="file-info"></span>
+              <span id="song-timer" class="song-timer"></span>
+            </div>
+            <!-- Bottom controls: camera switch, record, audio toggle -->
+            <div class="bottom-controls">
+              <button id="switch-camera" class="icon-button" title="Changer de caméra">
+                <span class="icon">📷</span>
+              </button>
+              <button id="record-button" class="record-button" disabled>
+                <span class="record-icon"></span>
+              </button>
+              <button id="toggle-source" class="icon-button" title="Source audio" disabled>
+                <span class="icon">🎤</span>
+              </button>
             </div>
           </div>
-          <!-- Display selected file info -->
-          <div id="file-info" class="file-info"></div>
-          <!-- Timer for song duration and countdown -->
-          <div id="song-timer" class="song-timer"></div>
           <!-- Countdown overlay before song starts -->
           <div id="countdown-overlay" class="countdown-overlay"></div>
           <!-- Hidden audio element used for playback -->
