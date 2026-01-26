@@ -26,12 +26,20 @@
           <div class="overlay">
             <div class="bottom-controls">
               <!-- left: switch camera -->
-              <button id="switch-camera" class="icon-button" title="Basculer la caméra">Caméra</button>
+              <button id="switch-camera" class="icon-button" title="Basculer la caméra">
+                <span class="btn-label">Caméra</span>
+              </button>
               <!-- centre: record -->
-              <button id="record-button" class="record-button" disabled>Rec</button>
-              <!-- right: toggle audio and choose song -->
-              <button id="toggle-source" class="icon-button" title="Basculer source audio" disabled>Mic</button>
-              <label class="icon-button" for="file-input">Chanson
+              <button id="record-button" class="record-button" disabled>
+                <span class="btn-label">Rec</span>
+              </button>
+              <!-- toggle between mic and song during recording -->
+              <button id="toggle-source" class="icon-button" title="Basculer source audio" disabled>
+                <span class="btn-label">Mic</span>
+              </button>
+              <!-- choose a song -->
+              <label class="icon-button file-button" title="Choisir une chanson">
+                <span class="btn-label">Chanson</span>
                 <input
                   id="file-input"
                   type="file"

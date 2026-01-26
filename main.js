@@ -42,6 +42,10 @@
   let recordingStartTime = null;      // Timestamp when recording began
   let selectedFileName = '';          // Name of the chosen audio file
 
+  // Track whether the song is currently playing to toggle the timer between
+  // total duration and remaining time
+  let songPlaying = false;
+
   // ----- Utility functions -----
   /**
    * Format a duration in seconds as MM:SS.
@@ -62,8 +66,16 @@
       songTimer.style.display = 'none';
       return;
     }
-    const remaining = Math.max(0, audioPlayer.duration - audioPlayer.currentTime);
-    songTimer.textContent = `${formatTime(remaining)} / ${formatTime(audioPlayer.duration)}`;
+    let text;
+    // When the song is not yet playing, show its total duration. When playing,
+    // display the remaining time as a countdown.
+    if (!songPlaying) {
+      text = formatTime(audioPlayer.duration);
+    } else {
+      const remaining = Math.max(0, audioPlayer.duration - audioPlayer.currentTime);
+      text = formatTime(remaining);
+    }
+    songTimer.textContent = text;
     songTimer.style.display = 'block';
   }
 
@@ -116,6 +128,7 @@
     toggleSourceBtn.disabled = true;
     // When metadata is loaded, display the total duration
     audioPlayer.onloadedmetadata = () => {
+      songPlaying = false;
       updateSongTimer();
     };
   }
@@ -158,6 +171,7 @@
     songGain.gain.value = 1;
     // Start playback
     audioPlayer.play().catch((err) => console.warn('Erreur lecture :', err));
+    songPlaying = true;
     updateSongTimer();
     if (timerInterval) clearInterval(timerInterval);
     timerInterval = setInterval(updateSongTimer, 500);
@@ -169,8 +183,9 @@
     };
     // Enable the toggle button during music playback
     toggleSourceBtn.disabled = false;
-    // Initialise button text to reflect that the mic is currently muted
-    toggleSourceBtn.textContent = 'Mic';
+    // Initialise button label to reflect that the mic is currently muted
+    const label = toggleSourceBtn.querySelector('.btn-label');
+    if (label) label.textContent = 'Mic';
   }
 
   /**
@@ -230,7 +245,8 @@
     isRecording = true;
     // Update UI
     recordButton.classList.add('recording');
-    recordButton.textContent = 'Stop';
+    const recLabel = recordButton.querySelector('.btn-label');
+    if (recLabel) recLabel.textContent = 'Stop';
     fileInput.disabled = true;
     toggleSourceBtn.disabled = true;
     // After 5 seconds, start countdown and then begin the song
@@ -262,7 +278,8 @@
     toggleSourceBtn.disabled = true;
     // Reset record button
     recordButton.classList.remove('recording');
-    recordButton.textContent = 'Rec';
+    const recLabel = recordButton.querySelector('.btn-label');
+    if (recLabel) recLabel.textContent = 'Rec';
     fileInput.disabled = false;
     // Stop MediaRecorder; handleStop will be invoked automatically
     if (mediaRecorder && mediaRecorder.state !== 'inactive') {
@@ -295,28 +312,18 @@
     recordedVideo.controls = true;
     recordedVideo.src = url;
     recordedVideo.classList.add('recorded-video');
-    // Determine orientation
-    try {
-      let width, height;
-      if (cameraStream && cameraStream.getVideoTracks().length > 0) {
-        const settings = cameraStream.getVideoTracks()[0].getSettings();
-        width = settings.width;
-        height = settings.height;
-      }
-      if (!width || !height) {
-        width = cameraPreview.videoWidth;
-        height = cameraPreview.videoHeight;
-      }
-      if (width && height) {
-        if (width > height) {
+    // Determine orientation after metadata is loaded
+    recordedVideo.addEventListener('loadedmetadata', () => {
+      try {
+        if (recordedVideo.videoWidth > recordedVideo.videoHeight) {
           recordedVideo.classList.add('landscape');
         } else {
           recordedVideo.classList.add('portrait');
         }
+      } catch (e) {
+        console.warn("Impossible de déterminer l'orientation de la vidéo", e);
       }
-    } catch (e) {
-      console.warn("Impossible de déterminer l'orientation de la vidéo", e);
-    }
+    });
     item.appendChild(recordedVideo);
     // Download link
     const downloadLink = document.createElement('a');
@@ -332,6 +339,29 @@
     }
     // Switch to gallery view
     showGallery();
+
+    // Cleanup audio context and sources so a new recording can start
+    try {
+      if (microSource) microSource.disconnect();
+      if (songSource) songSource.disconnect();
+      if (microGain) microGain.disconnect();
+      if (songGain) songGain.disconnect();
+    } catch (e) {
+      console.warn('Erreur lors du nettoyage des graphes audio :', e);
+    }
+    if (audioContext) {
+      audioContext.close().catch(() => {});
+      audioContext = null;
+    }
+    microSource = null;
+    songSource = null;
+    microGain = null;
+    songGain = null;
+    destinationNode = null;
+    mediaRecorder = null;
+    // Reset song state
+    songPlaying = false;
+    updateSongTimer();
   }
 
   /**
@@ -341,15 +371,16 @@
    */
   function toggleSource() {
     if (!isRecording) return;
+    const label = toggleSourceBtn.querySelector('.btn-label');
     // If mic is currently muted (song is recorded), unmute mic and mute song
     if (microGain.gain.value === 0) {
       microGain.gain.value = 1;
       songGain.gain.value = 0;
-      toggleSourceBtn.textContent = 'Chanson';
+      if (label) label.textContent = 'Chanson';
     } else {
       microGain.gain.value = 0;
       songGain.gain.value = 1;
-      toggleSourceBtn.textContent = 'Mic';
+      if (label) label.textContent = 'Mic';
     }
   }
 
@@ -425,4 +456,20 @@
         .catch((err) => console.error('Échec enregistrement ServiceWorker :', err));
     });
   }
+
+  // Orientation handling: add or remove a class on the body to indicate when
+  // the device is in landscape mode. This is used to rotate button labels
+  // while keeping the control bar anchored at the bottom.
+  function updateOrientationClass() {
+    const isLandscape = window.matchMedia('(orientation: landscape)').matches;
+    if (isLandscape) {
+      document.body.classList.add('landscape');
+    } else {
+      document.body.classList.remove('landscape');
+    }
+  }
+  // Run once at start and whenever the orientation changes or the window is resized
+  updateOrientationClass();
+  window.addEventListener('orientationchange', updateOrientationClass);
+  window.addEventListener('resize', updateOrientationClass);
 })();
