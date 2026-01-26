@@ -99,12 +99,25 @@
   /**
    * Initialise the camera stream based on the current facing mode.
    */
-  async function initCamera() {
-    // Stop any existing tracks
-    if (cameraStream) {
-      cameraStream.getTracks().forEach((track) => track.stop());
-    }
+  /**
+   * Initialise la caméra et, si nécessaire, le micro. Pour conserver
+   * l'autorisation de l'utilisateur, nous ne stoppons plus les pistes
+   * existantes sauf lorsque nous devons absolument recréer le flux (par
+   * exemple lors d'un changement de caméra). Le paramètre `force`
+   * indique si l'on doit demander un nouveau MediaStream.
+   * @param {boolean} force
+   */
+  async function initCamera(force = false) {
     try {
+      // Si un flux existe déjà et que l'on ne force pas, réutilise-le
+      if (cameraStream && !force) {
+        cameraPreview.srcObject = cameraStream;
+        return;
+      }
+      // Si on force, arrête les pistes de l'ancien flux
+      if (cameraStream) {
+        cameraStream.getTracks().forEach((track) => track.stop());
+      }
       cameraStream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: currentFacing },
         audio: true,
@@ -352,47 +365,44 @@
     info.textContent = `${selectedFileName} — ${formatTime(durationSec)}`;
     info.classList.add('recording-info');
     item.appendChild(info);
-    // Video element (hidden by default) and orientation detection
+    // Container for the video and download link, hidden by default
+    const videoContainer = document.createElement('div');
+    videoContainer.style.display = 'none';
+    // Video element and orientation detection
     const recordedVideo = document.createElement('video');
     recordedVideo.controls = true;
     recordedVideo.src = url;
     recordedVideo.classList.add('recorded-video');
-    // Use the hidden attribute to hide the video until the user expands the item.
-    recordedVideo.hidden = true;
-    recordedVideo.addEventListener('loadedmetadata', () => {
-      try {
-        if (recordedVideo.videoWidth > recordedVideo.videoHeight) {
-          recordedVideo.classList.add('landscape');
-        } else {
-          recordedVideo.classList.add('portrait');
-        }
-      } catch (e) {
-        console.warn("Impossible de déterminer l'orientation de la vidéo", e);
-      }
-    });
-    item.appendChild(recordedVideo);
-    // Clicking on the item toggles the video element visibility and controls playback
-    item.addEventListener('click', () => {
-      const nowHidden = recordedVideo.hidden;
-      if (nowHidden) {
-        // Show the video and start playing from the beginning
-        recordedVideo.hidden = false;
-        recordedVideo.currentTime = 0;
-        recordedVideo.play().catch(() => {});
-      } else {
-        // Hide the video and reset playback
-        recordedVideo.hidden = true;
-        recordedVideo.pause();
-        recordedVideo.currentTime = 0;
-      }
-    });
-    // Download link
+    // No explicit orientation detection here; CSS will ensure the video
+    // scales properly without cropping. Using object-fit: contain in CSS
+    // keeps the entire video visible regardless of aspect ratio.
+    videoContainer.appendChild(recordedVideo);
+    // Download link inside the video container
     const downloadLink = document.createElement('a');
     downloadLink.href = url;
     downloadLink.download = 'cralk-recording.webm';
     downloadLink.textContent = 'Télécharger';
     downloadLink.classList.add('download-link');
-    item.appendChild(downloadLink);
+    downloadLink.addEventListener('click', (e) => {
+      // Prevent toggling the video when clicking the download link
+      e.stopPropagation();
+    });
+    videoContainer.appendChild(downloadLink);
+    item.appendChild(videoContainer);
+    // Clicking on the info line toggles the video container visibility and controls playback
+    info.addEventListener('click', () => {
+      if (videoContainer.style.display === 'none') {
+        // Show video and play from beginning
+        videoContainer.style.display = 'block';
+        recordedVideo.currentTime = 0;
+        recordedVideo.play().catch(() => {});
+      } else {
+        // Hide video and reset playback
+        recordedVideo.pause();
+        recordedVideo.currentTime = 0;
+        videoContainer.style.display = 'none';
+      }
+    });
     // Insert into gallery and enforce a maximum of 10 recordings
     recordingsContainer.appendChild(item);
     while (recordingsContainer.children.length > 10) {
@@ -470,7 +480,8 @@
    */
   function switchCamera() {
     currentFacing = currentFacing === 'user' ? 'environment' : 'user';
-    initCamera();
+    // Force reinitialisation du flux pour changer de caméra
+    initCamera(true);
   }
 
   /**

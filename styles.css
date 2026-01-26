@@ -165,6 +165,8 @@ html {
   color: #ffffff;
   border: none;
   padding: 0;
+  pointer-events: auto;
+  cursor: pointer;
 }
 
 /* Icon inside the top button */
@@ -213,13 +215,11 @@ html {
 /* Recorded videos are hidden by default and will be displayed when the user
    selects a recording. Always preserve aspect ratio and limit the height so
    they fit comfortably on the screen. */
+/* Recorded video element: preserve aspect ratio and fit within the container.
+   Always take full width and scale height accordingly. */
 .recorded-video {
-  /* Recorded videos always preserve their aspect ratio and never exceed the
-     available width or a 60vh height. The element itself is hidden by
-     default via the hidden attribute set by JavaScript. */
   width: 100%;
   height: auto;
-  max-height: 60vh;
   object-fit: contain;
   border-radius: 8px;
   background: #000;
@@ -229,16 +229,19 @@ html {
 /* Hide the recorded video when the `hidden` attribute is present. When
    the hidden attribute is removed (via JavaScript), the default block
    display is restored so the video becomes visible. */
+/* Hide the recorded video when hidden and remove extra margin */
 .recording-item video[hidden] {
   display: none;
+  margin-top: 0;
 }
 
 /* Adjust recorded video size based on orientation. In portrait
    orientation, limit height to 60vh and allow width to scale; in
    landscape, use full width and auto height. */
+/* Remove orientation‑specific sizing; rely on object-fit */
 .recorded-video.portrait {
-  width: auto;
-  height: 60vh;
+  width: 100%;
+  height: auto;
 }
 .recorded-video.landscape {
   width: 100%;
@@ -256,18 +259,25 @@ html {
 .recording-item {
   width: 100%;
   margin-bottom: 1rem;
-  cursor: pointer;
   padding: 0.5rem;
   border-radius: 6px;
   background: rgba(255, 255, 255, 0.05);
   backdrop-filter: blur(6px);
 }
 
+/* Container that holds the recorded video and download link; hidden by default */
+.recording-item div + div {
+  width: 100%;
+  margin-top: 0.5rem;
+}
+
+
 .recording-info {
   font-size: 0.85rem;
   color: #ffffff;
   margin-bottom: 0.4rem;
   text-align: left;
+  cursor: pointer;
 }
 
 /* ----- Multi‑screen navigation ----- */
