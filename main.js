@@ -26,6 +26,13 @@
   const toggleSourceBtn = document.getElementById('toggle-source');
   const recordingsContainer = document.getElementById('gallery-recordings');
   const appContainer = document.getElementById('app-container');
+  // Icons inside the toggle button
+  const micIcon = toggleSourceBtn.querySelector('.mic-icon');
+  const noteToggleIcon = toggleSourceBtn.querySelector('.note-toggle-icon');
+  // Gallery control buttons
+  const deleteAllBtn = document.getElementById('delete-all');
+  const downloadAllBtn = document.getElementById('download-all');
+  const helpBtn = document.getElementById('help-btn');
 
   // ----- State variables -----
   let cameraStream = null;            // MediaStream from getUserMedia (video+mic)
@@ -197,11 +204,9 @@
     };
     // Enable the toggle button during music playback
     toggleSourceBtn.disabled = false;
-    // Update the toggle icon to reflect that we are currently recording the song
-    const iconEl = toggleSourceBtn.querySelector('.icon');
-    if (iconEl) {
-      iconEl.textContent = '🎵';
-    }
+    // Show the music icon and hide the mic icon
+    if (micIcon) micIcon.style.display = 'none';
+    if (noteToggleIcon) noteToggleIcon.style.display = 'block';
     // We are now recording the song (mic muted)
     recordingSource = 'song';
   }
@@ -225,11 +230,9 @@
     recordedChunks = [];
     recordingStartTime = Date.now();
     recordingSource = 'mic';
-    // Show that we are currently recording the mic by updating the toggle icon
-    const iconEl = toggleSourceBtn.querySelector('.icon');
-    if (iconEl) {
-      iconEl.textContent = '🎤';
-    }
+    // Show that we are currently recording the mic by updating the toggle icons
+    if (micIcon) micIcon.style.display = 'block';
+    if (noteToggleIcon) noteToggleIcon.style.display = 'none';
     // Create audio context and nodes
     audioContext = new (window.AudioContext || window.webkitAudioContext)();
     // Microphone source from the camera stream
@@ -427,6 +430,11 @@
 
     // Release the recording clone so a new one can be created on next recording
     songClone = null;
+
+    // Reset toggle button icons to microphone by default for the next recording
+    if (micIcon) micIcon.style.display = 'block';
+    if (noteToggleIcon) noteToggleIcon.style.display = 'none';
+    toggleSourceBtn.disabled = true;
   }
 
   /**
@@ -437,21 +445,22 @@
   function toggleSource() {
     if (!isRecording) return;
     // Toggle between recording the song and the mic based on current state.
-    const iconEl = toggleSourceBtn.querySelector('.icon');
     if (recordingSource === 'song') {
       // We were recording the song; switch to the microphone
       microGain.gain.value = 1;
       songGain.gain.value = 0;
       recordingSource = 'mic';
-      // Update icon to indicate that the microphone is now being recorded
-      if (iconEl) iconEl.textContent = '🎤';
+      // Show mic icon and hide note icon
+      if (micIcon) micIcon.style.display = 'block';
+      if (noteToggleIcon) noteToggleIcon.style.display = 'none';
     } else {
       // We were recording the microphone; switch to the song
       microGain.gain.value = 0;
       songGain.gain.value = 1;
       recordingSource = 'song';
-      // Update icon to indicate that the song is now being recorded
-      if (iconEl) iconEl.textContent = '🎵';
+      // Show note icon and hide mic icon
+      if (micIcon) micIcon.style.display = 'none';
+      if (noteToggleIcon) noteToggleIcon.style.display = 'block';
     }
   }
 
@@ -489,6 +498,56 @@
       stopRecording();
     }
   });
+
+  // Gallery control: delete all recordings
+  if (deleteAllBtn) {
+    deleteAllBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      // Remove all recorded items and revoke their object URLs
+      while (recordingsContainer.firstChild) {
+        const child = recordingsContainer.firstChild;
+        const videoEl = child.querySelector('video');
+        if (videoEl && videoEl.src) {
+          URL.revokeObjectURL(videoEl.src);
+        }
+        recordingsContainer.removeChild(child);
+      }
+    });
+  }
+
+  // Gallery control: download all recordings and then clear them
+  if (downloadAllBtn) {
+    downloadAllBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      // For each recording item, trigger the download link programmatically
+      const items = Array.from(recordingsContainer.children);
+      for (const item of items) {
+        const link = item.querySelector('a.download-link');
+        if (link) {
+          link.click();
+        }
+      }
+      // After initiating downloads, clear all items
+      if (items.length > 0) {
+        setTimeout(() => {
+          while (recordingsContainer.firstChild) {
+            const child = recordingsContainer.firstChild;
+            const videoEl = child.querySelector('video');
+            if (videoEl && videoEl.src) URL.revokeObjectURL(videoEl.src);
+            recordingsContainer.removeChild(child);
+          }
+        }, 500);
+      }
+    });
+  }
+
+  // Gallery control: help button placeholder
+  if (helpBtn) {
+    helpBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      alert('Aide : cette fonctionnalité sera disponible prochainement.');
+    });
+  }
   // Swipe detection for switching screens
   let touchStartX = null;
   appContainer.addEventListener(

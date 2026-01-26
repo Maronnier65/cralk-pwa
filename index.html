@@ -26,29 +26,58 @@
           <div class="overlay">
             <!-- Top bar: choose song, display name and timer -->
             <div class="top-bar">
-              <label id="choose-song" class="top-button" title="Choisir une chanson">
-                <span class="top-icon">🎵</span>
-                <input
-                  id="file-input"
-                  type="file"
-                  accept="audio/*"
-                  aria-label="Sélectionnez un fichier audio"
-                  hidden
-                />
+              <!-- Music selector: clicking the icon opens the hidden file input -->
+              <label id="choose-song-btn" class="top-button" for="file-input" title="Choisir une chanson">
+                <svg class="icon music-icon" viewBox="0 0 24 24" width="24" height="24">
+                  <!-- simple quaver icon: two circles and a stem -->
+                  <circle cx="9" cy="16" r="3" fill="currentColor" />
+                  <circle cx="15" cy="18" r="3" fill="currentColor" />
+                  <rect x="14" y="4" width="2" height="14" fill="currentColor" />
+                  <rect x="16" y="4" width="2" height="6" fill="currentColor" />
+                </svg>
               </label>
+              <input
+                id="file-input"
+                type="file"
+                accept="audio/*"
+                aria-label="Sélectionnez un fichier audio"
+                hidden
+              />
+              <!-- Selected file name -->
               <span id="file-info" class="file-info"></span>
+              <!-- Single timer showing total duration or remaining time -->
               <span id="song-timer" class="song-timer"></span>
             </div>
             <!-- Bottom controls: camera switch, record, audio toggle -->
             <div class="bottom-controls">
+              <!-- Camera switch button -->
               <button id="switch-camera" class="icon-button" title="Changer de caméra">
-                <span class="icon">📷</span>
+                <svg class="icon camera-icon" viewBox="0 0 24 24" width="24" height="24">
+                  <!-- simple camera icon: body and lens -->
+                  <rect x="3" y="6" width="18" height="12" rx="3" ry="3" fill="none" stroke="currentColor" stroke-width="2" />
+                  <circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="2" />
+                  <rect x="6" y="4" width="5" height="3" fill="currentColor" />
+                </svg>
               </button>
+              <!-- Record button: red dot in centre of a circular button -->
               <button id="record-button" class="record-button" disabled>
                 <span class="record-icon"></span>
               </button>
+              <!-- Toggle audio source button: contains both mic and note icons; JS toggles visibility -->
               <button id="toggle-source" class="icon-button" title="Source audio" disabled>
-                <span class="icon">🎤</span>
+                <svg class="icon mic-icon" viewBox="0 0 24 24" width="24" height="24">
+                  <!-- simple microphone icon: capsule, stem and base -->
+                  <rect x="8" y="3" width="8" height="10" rx="4" ry="4" fill="currentColor" />
+                  <rect x="11" y="13" width="2" height="5" fill="currentColor" />
+                  <rect x="7" y="19" width="10" height="2" fill="currentColor" />
+                </svg>
+                <svg class="icon note-toggle-icon" viewBox="0 0 24 24" width="24" height="24" style="display:none;">
+                  <!-- reuse the quaver icon for the toggle state -->
+                  <circle cx="9" cy="16" r="3" fill="currentColor" />
+                  <circle cx="15" cy="18" r="3" fill="currentColor" />
+                  <rect x="14" y="4" width="2" height="14" fill="currentColor" />
+                  <rect x="16" y="4" width="2" height="6" fill="currentColor" />
+                </svg>
               </button>
             </div>
           </div>
@@ -59,6 +88,33 @@
         </div>
         <!-- Gallery screen: lists recorded videos -->
         <div class="screen gallery-screen">
+          <!-- Controls at the top of the gallery for mass actions -->
+          <div class="gallery-controls">
+            <button id="delete-all" class="icon-button" title="Effacer toutes les vidéos">
+              <svg class="icon trash-icon" viewBox="0 0 24 24" width="24" height="24">
+                <!-- simple trash can: lid and body -->
+                <rect x="5" y="9" width="14" height="12" rx="2" ry="2" fill="currentColor" />
+                <rect x="7" y="4" width="10" height="3" fill="currentColor" />
+                <rect x="4" y="7" width="16" height="2" fill="currentColor" />
+              </svg>
+            </button>
+            <button id="download-all" class="icon-button" title="Télécharger toutes les vidéos et effacer">
+              <svg class="icon download-icon" viewBox="0 0 24 24" width="24" height="24">
+                <!-- simple arrow down inside a box -->
+                <path d="M12 3v10" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                <path d="M8 11l4 4 4-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                <rect x="4" y="17" width="16" height="2" fill="currentColor" />
+              </svg>
+            </button>
+            <button id="help-btn" class="icon-button" title="Aide">
+              <svg class="icon help-icon" viewBox="0 0 24 24" width="24" height="24">
+                <!-- circle with a question mark -->
+                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" fill="none" />
+                <path d="M12 8a2.5 2.5 0 1 1 0 5v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                <circle cx="12" cy="17" r="1.5" fill="currentColor" />
+              </svg>
+            </button>
+          </div>
           <div id="gallery-recordings"></div>
         </div>
       </div>

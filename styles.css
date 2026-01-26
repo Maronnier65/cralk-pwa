@@ -84,7 +84,7 @@ html {
   pointer-events: auto;
 }
 
-/* Generic button styles */
+/* Generic button styles: uniform round icons with translucent dark background */
 .icon-button,
 .record-button {
   pointer-events: auto;
@@ -92,102 +92,89 @@ html {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--text-color);
-  font-size: 0.8rem;
+  color: #ffffff;
+  background: rgba(0, 0, 0, 0.75);
   transition: background 0.3s;
-  background: rgba(255, 255, 255, 0.12);
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  border-radius: 14px;
-  backdrop-filter: blur(10px);
   box-shadow: 0 3px 6px rgba(0, 0, 0, 0.4);
-  padding: 0.6rem 0.8rem;
 }
 
-/* Icon element inside bottom control buttons */
-.icon-button .icon {
-  font-size: 1.3rem;
-}
-
-/* Record button icon: draw a small circle in the centre */
-.record-button .record-icon {
-  width: 1.4rem;
-  height: 1.4rem;
+/* Icon buttons: small square size and fully round */
+.icon-button {
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
-  background: currentColor;
+  padding: 0;
+}
+
+/* Record button: slightly larger but still round; contains a red dot inside */
+.record-button {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  padding: 0;
+}
+
+/* Inner red dot for the record button */
+.record-button .record-icon {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #e74c3c; /* red */
   display: block;
 }
 
-/* Specific sizing: icon buttons are square, record button is circular and larger */
-.icon-button {
-  min-width: 44px;
-  min-height: 44px;
-  justify-content: center;
-}
-.record-button {
-  min-width: 68px;
-  min-height: 68px;
-  border-radius: 50%;
-  background: var(--accent-color);
-  color: #fff;
-}
+/* When recording, tint the record button red for clarity */
 .record-button.recording {
-  background: red;
+  background: rgba(255, 0, 0, 0.8);
 }
 
-/* Hover state */
-.icon-button:hover,
-.record-button:hover {
-  background: rgba(255, 255, 255, 0.22);
-}
-
-/* Disabled state */
+/* Disabled state for buttons: lower opacity */
 .icon-button:disabled,
 .record-button:disabled {
   opacity: 0.5;
 }
 
 /* Top bar contains the song selector, file name and timer */
+/* Top bar for the song selector and timer: slim strip with semi‑transparent background */
 .top-bar {
   position: absolute;
-  top: 0.5rem;
+  top: 0.3rem;
   left: 0.5rem;
   right: 0.5rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.4rem 0.6rem;
-  background: rgba(0, 0, 0, 0.6);
+  padding: 0.15rem 0.4rem;
+  background: rgba(0, 0, 0, 0.75);
   color: #ffffff;
-  border-radius: 8px;
+  border-radius: 6px;
   backdrop-filter: blur(8px);
   pointer-events: auto;
 }
 
 /* Top button (music note) */
+/* Music selector button shares the same look as the icon buttons */
 .top-button {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--text-color);
-  font-size: 1.2rem;
-  /* Give the music selector a more obvious button style */
-  background: rgba(255, 255, 255, 0.12);
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  padding: 0.4rem 0.6rem;
-  border-radius: 10px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.75);
+  color: #ffffff;
+  border: none;
+  padding: 0;
 }
 
 /* Icon inside the top button */
-.top-icon {
-  font-size: 1.4rem;
-}
+/* Icon inside top music button inherits size from svg; no explicit font size needed */
 
 /* File info text within the top bar */
 .top-bar #file-info {
   flex: 1;
-  margin: 0 0.5rem;
-  font-size: 0.9rem;
+  margin: 0 0.3rem;
+  font-size: 0.8rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -196,8 +183,8 @@ html {
 
 /* Song timer text within the top bar */
 .top-bar #song-timer {
-  font-size: 0.9rem;
-  min-width: 3rem;
+  font-size: 0.8rem;
+  min-width: 2.5rem;
   text-align: right;
   display: none; /* Hidden until a song is selected */
 }
@@ -314,6 +301,30 @@ html {
   align-items: center;
   justify-content: flex-start;
   padding: 1rem;
+}
+
+/* Controls at the top of the gallery page */
+.gallery-controls {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+.gallery-controls .icon-button {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.75);
+  color: #ffffff;
+  border: none;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.gallery-controls .icon-button:disabled {
+  opacity: 0.5;
 }
 
 /* Rotate button labels based on orientation. In portrait, no rotation; in landscape,
