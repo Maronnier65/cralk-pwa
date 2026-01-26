@@ -37,7 +37,6 @@
   let microSource, songSource;        // MediaStreamSource nodes
   let microGain, songGain;            // Gain nodes for cross‑fading
   let destinationNode = null;         // MediaStreamDestination for combined audio
-  let preSongTimeout = null;          // Timeout to trigger countdown/song
   let timerInterval = null;           // Interval to update the song timer
   let recordingStartTime = null;      // Timestamp when recording began
   let selectedFileName = '';          // Name of the chosen audio file
@@ -187,9 +186,11 @@
     };
     // Enable the toggle button during music playback
     toggleSourceBtn.disabled = false;
-    // Update label to reflect that we are currently recording the song
-    const label = toggleSourceBtn.querySelector('.btn-label');
-    if (label) label.textContent = 'Chanson';
+    // Update the toggle icon to reflect that we are currently recording the song
+    const iconEl = toggleSourceBtn.querySelector('.icon');
+    if (iconEl) {
+      iconEl.textContent = '🎵';
+    }
 
     // We are now recording the song (mic muted)
     recordingSource = 'song';
@@ -214,9 +215,11 @@
     recordedChunks = [];
     recordingStartTime = Date.now();
     recordingSource = 'mic';
-    // Show that we are currently recording the mic
-    const label = toggleSourceBtn.querySelector('.btn-label');
-    if (label) label.textContent = 'Mic';
+    // Show that we are currently recording the mic by updating the toggle icon
+    const iconEl = toggleSourceBtn.querySelector('.icon');
+    if (iconEl) {
+      iconEl.textContent = '🎤';
+    }
     // Create audio context and nodes
     audioContext = new (window.AudioContext || window.webkitAudioContext)();
     // Microphone source from the camera stream
@@ -226,12 +229,18 @@
     microGain.gain.value = 1;
     microSource.connect(microGain);
     // Song source from the audio element
-    songSource = audioContext.createMediaElementSource(audioPlayer);
+    // Song source from the audio element. Use captureStream() to
+    // obtain an independent MediaStream for the recorded audio. This avoids
+    // re‑creating multiple MediaElementSourceNodes on the same element,
+    // which can cause errors when starting new recordings. The captured
+    // stream contains the audio output of the element.
+    const songStream = audioPlayer.captureStream();
+    songSource = audioContext.createMediaStreamSource(songStream);
     songGain = audioContext.createGain();
     songGain.gain.value = 0; // muted initially
     songSource.connect(songGain);
-    // Always send the song to the user's speakers
-    songSource.connect(audioContext.destination);
+    // Note: we do not connect the song to audioContext.destination here,
+    // because the audio element itself will output sound to the device.
     // Combine both gains into a destination for the recorder
     destinationNode = audioContext.createMediaStreamDestination();
     microGain.connect(destinationNode);
@@ -256,15 +265,14 @@
     isRecording = true;
     // Update UI
     recordButton.classList.add('recording');
-    const recLabel = recordButton.querySelector('.btn-label');
-    if (recLabel) recLabel.textContent = 'Stop';
     fileInput.disabled = true;
     toggleSourceBtn.disabled = true;
-    // After 5 seconds, start countdown and then begin the song
-    preSongTimeout = setTimeout(async () => {
-      await runCountdown(3);
+    // Immediately start a 5 second countdown. During this countdown, the microphone
+    // audio is recorded. Once the countdown ends, start the selected song and
+    // replace the microphone audio in the recording.
+    runCountdown(5).then(() => {
       startSong();
-    }, 5000);
+    });
   }
 
   /**
@@ -274,10 +282,8 @@
   function stopRecording() {
     if (!isRecording) return;
     // Cancel any pending song start or timers
-    if (preSongTimeout) {
-      clearTimeout(preSongTimeout);
-      preSongTimeout = null;
-    }
+    // No pending countdown to cancel since we no longer use setTimeout for
+    // the pre‑song delay. Only clear the song timer below.
     if (timerInterval) {
       clearInterval(timerInterval);
       timerInterval = null;
@@ -289,8 +295,6 @@
     toggleSourceBtn.disabled = true;
     // Reset record button
     recordButton.classList.remove('recording');
-    const recLabel = recordButton.querySelector('.btn-label');
-    if (recLabel) recLabel.textContent = 'Rec';
     fileInput.disabled = false;
     // Stop MediaRecorder; handleStop will be invoked automatically
     if (mediaRecorder && mediaRecorder.state !== 'inactive') {
@@ -402,21 +406,22 @@
    */
   function toggleSource() {
     if (!isRecording) return;
-    const label = toggleSourceBtn.querySelector('.btn-label');
     // Toggle between recording the song and the mic based on current state.
+    const iconEl = toggleSourceBtn.querySelector('.icon');
     if (recordingSource === 'song') {
       // We were recording the song; switch to the microphone
       microGain.gain.value = 1;
       songGain.gain.value = 0;
       recordingSource = 'mic';
-      // Update label to indicate the active source
-      if (label) label.textContent = 'Mic';
+      // Update icon to indicate that the microphone is now being recorded
+      if (iconEl) iconEl.textContent = '🎤';
     } else {
       // We were recording the microphone; switch to the song
       microGain.gain.value = 0;
       songGain.gain.value = 1;
       recordingSource = 'song';
-      if (label) label.textContent = 'Chanson';
+      // Update icon to indicate that the song is now being recorded
+      if (iconEl) iconEl.textContent = '🎵';
     }
   }
 

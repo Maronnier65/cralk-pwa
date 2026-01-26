@@ -103,6 +103,20 @@ html {
   padding: 0.6rem 0.8rem;
 }
 
+/* Icon element inside bottom control buttons */
+.icon-button .icon {
+  font-size: 1.3rem;
+}
+
+/* Record button icon: draw a small circle in the centre */
+.record-button .record-icon {
+  width: 1.4rem;
+  height: 1.4rem;
+  border-radius: 50%;
+  background: currentColor;
+  display: block;
+}
+
 /* Specific sizing: icon buttons are square, record button is circular and larger */
 .icon-button {
   min-width: 44px;
@@ -132,33 +146,54 @@ html {
   opacity: 0.5;
 }
 
-/* Display selected file name in a semi‑transparent bar at the top */
-#file-info {
+/* Top bar contains the song selector, file name and timer */
+.top-bar {
   position: absolute;
-  top: 1rem;
+  top: 0.5rem;
   left: 0.5rem;
   right: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   padding: 0.4rem 0.6rem;
   background: rgba(0, 0, 0, 0.6);
   color: #ffffff;
-  font-size: 0.9rem;
   border-radius: 8px;
-  text-align: center;
   backdrop-filter: blur(8px);
+  pointer-events: auto;
 }
 
-/* Timer showing song duration and remaining time */
-#song-timer {
-  position: absolute;
-  top: 3.2rem;
-  right: 0.5rem;
-  padding: 0.3rem 0.5rem;
-  background: rgba(0, 0, 0, 0.6);
-  color: #ffffff;
-  font-size: 0.8rem;
-  border-radius: 8px;
-  display: none; /* hidden until a song is selected */
-  backdrop-filter: blur(8px);
+/* Top button (music note) */
+.top-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-color);
+  font-size: 1.4rem;
+}
+
+/* Icon inside the top button */
+.top-icon {
+  font-size: 1.4rem;
+}
+
+/* File info text within the top bar */
+.top-bar #file-info {
+  flex: 1;
+  margin: 0 0.5rem;
+  font-size: 0.9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+
+/* Song timer text within the top bar */
+.top-bar #song-timer {
+  font-size: 0.9rem;
+  min-width: 3rem;
+  text-align: right;
+  display: none; /* Hidden until a song is selected */
 }
 
 /* Countdown overlay for pre‑song countdown */
@@ -198,15 +233,24 @@ html {
   margin-top: 0.5rem;
 }
 
-/* Hide any video element inside a recording item until the user expands it. */
-.recording-item video {
+/* Hide the recorded video when the `hidden` attribute is present. When
+   the hidden attribute is removed (via JavaScript), the default block
+   display is restored so the video becomes visible. */
+.recording-item video[hidden] {
   display: none;
 }
 
-/* Orientation classes are retained for possible future styling but are not
-   currently used to size the video differently. */
-.recorded-video.portrait {}
-.recorded-video.landscape {}
+/* Adjust recorded video size based on orientation. In portrait
+   orientation, limit height to 60vh and allow width to scale; in
+   landscape, use full width and auto height. */
+.recorded-video.portrait {
+  width: auto;
+  height: 60vh;
+}
+.recorded-video.landscape {
+  width: 100%;
+  height: auto;
+}
 
 .download-link {
   display: block;
