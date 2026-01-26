@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CRALK</title>
+    <!-- Link to the PWA manifest for installation on iOS/Android -->
+    <link rel="manifest" href="manifest.json" />
+    <!-- Fallback icon for older browsers -->
+    <link rel="icon" type="image/png" href="icon-192.png" />
+    <!-- Apple specific tags for iOS PWA support -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="CRALK" />
+    <link rel="apple-touch-icon" href="icon-512.png" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main id="app-container">
+      <!-- Screen container manages slide transitions between recording and gallery screens -->
+      <div id="screen-container">
+        <!-- Recorder screen: displays the camera and controls -->
+        <div class="screen recorder-screen">
+          <video id="camera-preview" autoplay playsinline muted></video>
+          <!-- Overlay with all controls at the bottom -->
+          <div class="overlay">
+            <div class="bottom-controls">
+              <div class="left-buttons">
+                <button id="switch-camera" class="icon-button" title="Basculer la caméra">Caméra</button>
+                <button id="toggle-mic" class="icon-button" title="Activer/Désactiver le micro">Ambiance</button>
+              </div>
+              <button id="record-button" class="record-button" disabled>Rec</button>
+              <div class="right-buttons">
+                <!-- Play/pause button for the selected music -->
+                <button id="play-music" class="icon-button" title="Lire/Pause la musique">▶︎</button>
+                <label class="icon-button" for="file-input">Chanson
+                  <input
+                    id="file-input"
+                    type="file"
+                    accept="audio/*"
+                    aria-label="Sélectionnez un fichier audio"
+                    hidden
+                  />
+                </label>
+              </div>
+            </div>
+          </div>
+          <!-- Display selected file info -->
+          <div id="file-info" class="file-info"></div>
+          <!-- Hidden audio element used for playback -->
+          <audio id="audio-player"></audio>
+        </div>
+        <!-- Gallery screen: lists recorded videos -->
+        <div class="screen gallery-screen">
+          <h2 class="gallery-title">Mes enregistrements</h2>
+          <div id="gallery-recordings"></div>
+        </div>
+      </div>
+    </main>
+    <script src="main.js"></script>
+  </body>
+</html>
