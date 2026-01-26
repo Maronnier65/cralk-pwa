@@ -49,6 +49,13 @@
   // avoids relying on gain values directly when toggling.
   let recordingSource = 'mic';
 
+  // Clone of the audio element used solely for recording. Creating a new
+  // MediaElementSourceNode from the original audio element more than once
+  // can cause errors on some browsers (notably Safari). Instead, we create
+  // a fresh Audio element for each recording and feed it into the audio
+  // context. This element is not part of the DOM.
+  let songClone = null;
+
   // ----- Utility functions -----
   /**
    * Format a duration in seconds as MM:SS.
@@ -167,18 +174,22 @@
    */
   function startSong() {
     if (!audioPlayer.src) return;
+    // Reset both audio elements to the beginning
     audioPlayer.currentTime = 0;
-    // When the song starts, mute the mic and unmute the song in the recorded
-    // stream. The song is always sent to the user via context.destination.
+    if (songClone) songClone.currentTime = 0;
+    // Mute the microphone and unmute the song in the recording
     microGain.gain.value = 0;
     songGain.gain.value = 1;
-    // Start playback
-    audioPlayer.play().catch((err) => console.warn('Erreur lecture :', err));
+    // Start playback for both the user (audioPlayer) and the recording clone
+    audioPlayer.play().catch((err) => console.warn('Erreur lecture (utilisateur) :', err));
+    if (songClone) {
+      songClone.play().catch((err) => console.warn('Erreur lecture (enregistrement) :', err));
+    }
     songPlaying = true;
     updateSongTimer();
     if (timerInterval) clearInterval(timerInterval);
     timerInterval = setInterval(updateSongTimer, 500);
-    // Stop recording automatically when the song finishes
+    // Stop recording automatically when the song finishes (use the user's audio element)
     audioPlayer.onended = () => {
       if (isRecording) {
         stopRecording();
@@ -191,7 +202,6 @@
     if (iconEl) {
       iconEl.textContent = '🎵';
     }
-
     // We are now recording the song (mic muted)
     recordingSource = 'song';
   }
@@ -229,18 +239,26 @@
     microGain.gain.value = 1;
     microSource.connect(microGain);
     // Song source from the audio element
-    // Song source from the audio element. Use captureStream() to
-    // obtain an independent MediaStream for the recorded audio. This avoids
-    // re‑creating multiple MediaElementSourceNodes on the same element,
-    // which can cause errors when starting new recordings. The captured
-    // stream contains the audio output of the element.
-    const songStream = audioPlayer.captureStream();
-    songSource = audioContext.createMediaStreamSource(songStream);
+    // Create a fresh clone of the selected song for recording. This avoids
+    // attempting to connect the same HTMLAudioElement to multiple
+    // AudioContexts, which is not allowed in Safari. The clone is not
+    // attached to the DOM and is solely used for recording.
+    songClone = new Audio(audioPlayer.src || '');
+    songClone.preload = 'auto';
+    try {
+      songSource = audioContext.createMediaElementSource(songClone);
+    } catch (err) {
+      console.warn('Erreur création MediaElementSource pour la chanson :', err);
+      songSource = null;
+    }
     songGain = audioContext.createGain();
     songGain.gain.value = 0; // muted initially
-    songSource.connect(songGain);
-    // Note: we do not connect the song to audioContext.destination here,
-    // because the audio element itself will output sound to the device.
+    if (songSource) {
+      songSource.connect(songGain);
+    }
+    // We do not connect songGain to audioContext.destination; audioPlayer
+    // handles playback for the user. The clone will be played when the
+    // countdown finishes via startSong().
     // Combine both gains into a destination for the recorder
     destinationNode = audioContext.createMediaStreamDestination();
     microGain.connect(destinationNode);
@@ -291,6 +309,15 @@
     // Stop music playback and reset
     audioPlayer.pause();
     audioPlayer.currentTime = 0;
+    // Stop the recording clone if it exists
+    if (songClone) {
+      try {
+        songClone.pause();
+        songClone.currentTime = 0;
+      } catch (e) {
+        console.warn('Erreur en arrêtant la chanson de clonage :', e);
+      }
+    }
     // Disable toggle while finalising
     toggleSourceBtn.disabled = true;
     // Reset record button
@@ -397,6 +424,9 @@
     // Reset song state
     songPlaying = false;
     updateSongTimer();
+
+    // Release the recording clone so a new one can be created on next recording
+    songClone = null;
   }
 
   /**

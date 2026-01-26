@@ -169,7 +169,13 @@ html {
   align-items: center;
   justify-content: center;
   color: var(--text-color);
-  font-size: 1.4rem;
+  font-size: 1.2rem;
+  /* Give the music selector a more obvious button style */
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  padding: 0.4rem 0.6rem;
+  border-radius: 10px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
 }
 
 /* Icon inside the top button */
