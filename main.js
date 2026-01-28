@@ -32,6 +32,7 @@
   const modalVideo = document.getElementById('modal-video');
   const closeModalBtn = document.getElementById('close-modal');
 
+
   // Keep a separate list of recordings with their metadata. Each entry has
   // { url, fileName, duration }. This array is used by the modal to
   // navigate between recordings without relying on DOM structure.
@@ -67,6 +68,7 @@
   // avoids relying on gain values directly when toggling.
   let recordingSource = 'mic';
 
+  
   // Clone of the audio element used solely for recording. Creating a new
   // MediaElementSourceNode from the original audio element more than once
   // can cause errors on some browsers (notably Safari). Instead, we create
@@ -101,6 +103,7 @@
       text = formatTime(audioPlayer.duration);
     } else {
       const remaining = Math.max(0, audioPlayer.duration - audioPlayer.currentTime);
+
       text = formatTime(remaining);
     }
     songTimer.textContent = text;
@@ -408,9 +411,14 @@
     const url = URL.createObjectURL(blob);
     // Compute duration based on recording start time
     const durationSec = Math.round((Date.now() - recordingStartTime) / 1000);
+      // Determine screen orientation angle for arrow overlay
+  const orientationDeg = (window.screen && window.screen.orientation && typeof window.screen.orientation.angle === 'number')
+    ? window.screen.orientation.angle
+    : 0;
+    
     // Add to our recordings list for modal navigation
     const recIndex = recordingsList.length;
-    recordingsList.push({ url, fileName: selectedFileName, duration: durationSec });
+    recordingsList.push({ url, fileName: selectedFileName, duration: durationSec, orientation: orientationDeg });
     // Create grid item with preview and overlay
     const item = document.createElement('div');
     item.classList.add('recording-item');
@@ -424,8 +432,40 @@
     item.appendChild(preview);
     const overlay = document.createElement('div');
     overlay.classList.add('recording-info-overlay');
-    overlay.textContent = `${selectedFileName} — ${formatTime(durationSec)}`;
-    item.appendChild(overlay);
+        item.appendChild(overlay);
+      // Add orientation arrow overlay
+  const arrow// Add orientation arrow overlay
+  const arrowOverlay = document.createElement('div');
+  arrowOverlay.classList.add('recording-arrow');
+  arrowOverlay.textContent = '↑';
+  arrowOverlay.style.transform = `rotate(${orientationDeg}deg)`;
+  item.appendChild(arrowOverlay);
+
+  arrowOverlay.style.transform = `rotate(${orientationDeg}deg)`;
+  item.appendChild(arrowOverlay);
+  arrowOverlay.textContent = '↑';
+  arrowOverlay.style.transform = `rotate(${orientationDeg}deg)`;
+  item.appendChild(arrowOverlay);
+  item.appendChild(arrowOverlay);
+  arrowOverlay.textContent = '\u2191';
+  overlay.classList.add('recording-info-overlay');
+  item.appendChild(arrowOverlay);
+  // Add download button
+  const downloadBtn = document.createElement('a');
+  downloadBtn.classList.add('download-btn');
+  downloadBtn.href = url;
+  downloadBtn.download = selectedFileName ? `${selectedFileName}.webm` : `recording-${Date.now()}.webm`;
+  downloadBtn.textContent = '\u2193';
+  downloadBtn.addEventListener('click', (ev) => {
+    ev.stopPropagation();
+  });
+  item.appendChild(downloadBtn);
+      // Persist recording to IndexedDB
+  if (typeof saveRecordingToDB === 'function') {
+    saveRecordingToDB(blob, selectedFileName, durationSec, orientationDeg);
+  }
+
+    
     // Start playing the preview silently once it's loaded
     preview.addEventListener('loadeddata', () => {
       preview.play().catch(() => {});
@@ -828,5 +868,6 @@
       }
       modalStartX = null;
     }, { passive: true });
+
   }
 })();
