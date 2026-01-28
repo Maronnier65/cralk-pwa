@@ -239,6 +239,8 @@
       alert('Veuillez d\'abord sélectionner une chanson.');
       return;
     }
+    // Show countdown overlay for 3 seconds before starting any capture
+    await runCountdown(3);
     // Reset state
     recordedChunks = [];
     recordingStartTime = Date.now();
@@ -272,9 +274,6 @@
     if (songSource) {
       songSource.connect(songGain);
     }
-    // We do not connect songGain to audioContext.destination; audioPlayer
-    // handles playback for the user. The clone will be played when the
-    // countdown finishes via startSong().
     // Combine both gains into a destination for the recorder
     destinationNode = audioContext.createMediaStreamDestination();
     microGain.connect(destinationNode);
@@ -301,12 +300,10 @@
     recordButton.classList.add('recording');
     fileInput.disabled = true;
     toggleSourceBtn.disabled = true;
-    // Immediately start a 5 second countdown. During this countdown, the microphone
-    // audio is recorded. Once the countdown ends, start the selected song and
-    // replace the microphone audio in the recording.
-    runCountdown(5).then(() => {
+    // Start the song after 3 seconds of recording mic audio.
+    setTimeout(() => {
       startSong();
-    });
+    }, 3000);
   }
 
   /**
@@ -373,9 +370,42 @@
     recordedVideo.controls = true;
     recordedVideo.src = url;
     recordedVideo.classList.add('recorded-video');
-    // No explicit orientation detection here; CSS will ensure the video
-    // scales properly without cropping. Using object-fit: contain in CSS
-    // keeps the entire video visible regardless of aspect ratio.
+    // Detect orientation of the recorded video once metadata is loaded. Add
+    // a class accordingly so CSS can adjust its sizing for portrait or
+    // landscape videos. Without this, videos may appear square or
+    // unexpectedly cropped. The event handler ensures orientation is set
+    // before the user interacts with the recording.
+    recordedVideo.addEventListener('loadedmetadata', () => {
+      const vw = recordedVideo.videoWidth || 0;
+      const vh = recordedVideo.videoHeight || 0;
+      if (vw && vh) {
+        if (vw > vh) {
+          recordedVideo.classList.add('landscape');
+        } else {
+          recordedVideo.classList.add('portrait');
+        }
+      }
+    });
+    // Hide the preview automatically when playback finishes. This ensures
+    // returning to the list collapses the video back to a simple line.
+    recordedVideo.addEventListener('ended', () => {
+      recordedVideo.pause();
+      recordedVideo.currentTime = 0;
+      if (videoContainer) {
+        videoContainer.style.display = 'none';
+      }
+    });
+    // Also hide the preview when the user taps on the video itself. This
+    // provides a simple way to close a playing preview and return to the
+    // text-only list without relying solely on the info line. When tapped,
+    // the video pauses, resets and the container collapses.
+    recordedVideo.addEventListener('click', () => {
+      recordedVideo.pause();
+      recordedVideo.currentTime = 0;
+      if (videoContainer) {
+        videoContainer.style.display = 'none';
+      }
+    });
     videoContainer.appendChild(recordedVideo);
     // Download link inside the video container
     const downloadLink = document.createElement('a');
@@ -488,6 +518,8 @@
    * Slide to the gallery view by adding a class to the app container.
    */
   function showGallery() {
+    // Collapse all open video containers before switching screens
+    collapseAllRecordings();
     appContainer.classList.add('gallery-active');
   }
 
@@ -495,7 +527,51 @@
    * Slide back to the recorder view by removing the gallery class.
    */
   function showRecorder() {
+    // Collapse all open video containers when returning to the recorder
+    collapseAllRecordings();
     appContainer.classList.remove('gallery-active');
+    // Reuse the existing camera stream if it exists; otherwise request a new one.
+    if (cameraStream) {
+      cameraPreview.srcObject = cameraStream;
+    } else {
+      initCamera();
+    }
+  }
+
+  /**
+   * Collapse all recordings by hiding their video containers and resetting playback.
+   */
+  function collapseAllRecordings() {
+    const items = recordingsContainer.children;
+    for (const item of items) {
+      // second div holds video container according to structure: info div + videoContainer
+      const containers = item.querySelectorAll('div');
+      if (containers.length > 1) {
+        const vContainer = containers[1];
+        if (vContainer && vContainer.style.display !== 'none') {
+          // pause and reset video
+          const video = vContainer.querySelector('video');
+          if (video) {
+            video.pause();
+            video.currentTime = 0;
+          }
+          vContainer.style.display = 'none';
+        }
+      }
+    }
+  }
+
+  /**
+   * Hide the splash screen once the app has completed initialisation. This
+   * function removes the splash element from the DOM to reveal the main
+   * interface. It is called after the camera is ready so that users see
+   * the logo while permissions are being requested.
+   */
+  function hideSplash() {
+    const splash = document.getElementById('splash-screen');
+    if (splash) {
+      splash.style.display = 'none';
+    }
   }
 
   // ----- Event listeners -----
@@ -530,25 +606,31 @@
   if (downloadAllBtn) {
     downloadAllBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      // For each recording item, trigger the download link programmatically
       const items = Array.from(recordingsContainer.children);
-      for (const item of items) {
+      if (items.length === 0) return;
+      // Trigger downloads sequentially to give the browser time to open each save dialog.
+      items.forEach((item, idx) => {
         const link = item.querySelector('a.download-link');
         if (link) {
-          link.click();
+          setTimeout(() => {
+            try {
+              link.click();
+            } catch (err) {
+              console.warn('Erreur lors du clic de téléchargement :', err);
+            }
+          }, idx * 300);
         }
-      }
-      // After initiating downloads, clear all items
-      if (items.length > 0) {
-        setTimeout(() => {
-          while (recordingsContainer.firstChild) {
-            const child = recordingsContainer.firstChild;
-            const videoEl = child.querySelector('video');
-            if (videoEl && videoEl.src) URL.revokeObjectURL(videoEl.src);
-            recordingsContainer.removeChild(child);
-          }
-        }, 500);
-      }
+      });
+      // Remove all recordings after downloads start, allowing a delay for the last click
+      const totalDelay = items.length * 300 + 800;
+      setTimeout(() => {
+        while (recordingsContainer.firstChild) {
+          const child = recordingsContainer.firstChild;
+          const videoEl = child.querySelector('video');
+          if (videoEl && videoEl.src) URL.revokeObjectURL(videoEl.src);
+          recordingsContainer.removeChild(child);
+        }
+      }, totalDelay);
     });
   }
 
@@ -588,13 +670,20 @@
   );
 
   // ----- Initialisation -----
-  initCamera();
+  // Request access to the camera and microphone once on initial load. The splash
+  // screen will be hidden regardless of whether access is granted, so the
+  // interface appears once permissions have been handled.
+  initCamera()
+    .catch(() => {})
+    .finally(() => {
+      hideSplash();
+    });
   // Register service worker for offline capability and updates
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
       navigator.serviceWorker
         .register('/sw.js')
-        .catch((err) => console.error('Échec enregistrement ServiceWorker :', err));
+        .catch((err) => console.error('Échec enregistrement ServiceWorker :', err));
     });
   }
 

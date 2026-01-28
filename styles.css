@@ -37,11 +37,18 @@ html {
 }
 
 /* Camera preview occupies the full available space */
+/* Camera preview fills the entire viewport regardless of orientation. The
+   object-fit: cover ensures the video fills the screen and crops evenly
+   without introducing letterboxing on the sides. */
 #camera-preview {
-  width: 100%;
-  height: 100%;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
   object-fit: cover;
   background: #000;
+  z-index: -1;
 }
 
 /* Overlay container covers the full view but allows underlying video to show */
@@ -57,6 +64,31 @@ html {
   justify-content: flex-end;
   padding: 0;
   pointer-events: none;
+}
+
+/* Splash screen covering the entire viewport on first load. Hidden via JS after initialisation. */
+#splash-screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--background-color);
+  color: var(--text-color);
+  z-index: 9999;
+}
+.splash-logo {
+  width: 120px;
+  height: 120px;
+  margin-bottom: 0.5rem;
+}
+.splash-title {
+  font-size: 1.6rem;
+  letter-spacing: 0.1rem;
 }
 
 /* Bottom controls are fixed at the bottom of the viewport and span its width. They remain
@@ -144,8 +176,10 @@ html {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.15rem 0.4rem;
-  background: rgba(0, 0, 0, 0.75);
+  /* Make the song bar thinner: reduce vertical padding */
+  padding: 0.08rem 0.4rem;
+  /* Make the song bar more transparent (half the previous opacity) */
+  background: rgba(0, 0, 0, 0.37);
   color: #ffffff;
   border-radius: 6px;
   backdrop-filter: blur(8px);
@@ -217,13 +251,27 @@ html {
    they fit comfortably on the screen. */
 /* Recorded video element: preserve aspect ratio and fit within the container.
    Always take full width and scale height accordingly. */
+/* Recorded video element: preserve aspect ratio and fill the available width; limit
+   height so the full video is visible whether in portrait or landscape. */
+/* Recorded video element: preserve aspect ratio and fill available space. The
+   object-fit property ensures the entire video is visible without cropping.
+   Orientation classes adjust how the video scales depending on whether the
+   recording is portrait or landscape. */
+/* Recorded video element: preserve aspect ratio and fill the available
+   width while keeping the full image visible. Setting max-height ensures
+   that portrait videos are not excessively tall and landscape videos
+   remain within the viewport. */
 .recorded-video {
+  display: block;
   width: 100%;
   height: auto;
+  max-height: 90vh;
   object-fit: contain;
   border-radius: 8px;
   background: #000;
   margin-top: 0.5rem;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 /* Hide the recorded video when the `hidden` attribute is present. When
@@ -239,13 +287,11 @@ html {
    orientation, limit height to 60vh and allow width to scale; in
    landscape, use full width and auto height. */
 /* Remove orientation‑specific sizing; rely on object-fit */
-.recorded-video.portrait {
-  width: 100%;
-  height: auto;
-}
+/* Remove orientation-specific sizing classes. Sizing is handled by
+   the base .recorded-video rules to avoid inconsistent cropping. */
+.recorded-video.portrait,
 .recorded-video.landscape {
-  width: 100%;
-  height: auto;
+  /* no additional sizing needed */
 }
 
 .download-link {
@@ -257,18 +303,19 @@ html {
 
 /* Gallery recording items */
 .recording-item {
+  /* Each recording item is a card within the grid; remove bottom margin since grid gap handles spacing */
   width: 100%;
-  margin-bottom: 1rem;
-  padding: 0.5rem;
+  padding: 0.4rem;
   border-radius: 6px;
   background: rgba(255, 255, 255, 0.05);
   backdrop-filter: blur(6px);
+  overflow: hidden;
 }
 
 /* Container that holds the recorded video and download link; hidden by default */
 .recording-item div + div {
   width: 100%;
-  margin-top: 0.5rem;
+  margin-top: 0.3rem;
 }
 
 
@@ -353,11 +400,15 @@ body.landscape .btn-label {
   margin-bottom: 1rem;
 }
 
+/* Gallery container: display recordings in a responsive grid similar to TikTok */
 #gallery-recordings {
   width: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  grid-auto-rows: auto;
+  gap: 0.6rem;
+  padding: 0.6rem;
+  box-sizing: border-box;
   overflow-y: auto;
 }
 
