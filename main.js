@@ -434,30 +434,22 @@
     overlay.classList.add('recording-info-overlay');
         item.appendChild(overlay);
       // Add orientation arrow overlay
-  const arrow// Add orientation arrow overlay
+  // Add orientation arrow overlay
   const arrowOverlay = document.createElement('div');
   arrowOverlay.classList.add('recording-arrow');
-  arrowOverlay.textContent = '↑';
-  arrowOverlay.style.transform = `rotate(${orientationDeg}deg)`;
+  arrowOverlay.textConten'\u2191''↑';
+  arrowOverlay.style.tran↑↑sform = `rotate(${orientationDeg}deg)`;
   item.appendChild(arrowOverlay);
 
-  arrowOverlay.style.transform = `rotate(${orientationDeg}deg)`;
-  item.appendChild(arrowOverlay);
-  arrowOverlay.textContent = '↑';
-  arrowOverlay.style.transform = `rotate(${orientationDeg}deg)`;
-  item.appendChild(arrowOverlay);
-  item.appendChild(arrowOverlay);
-  arrowOverlay.textContent = '\u2191';
-  overlay.classList.add('recording-info-overlay');
-  item.appendChild(arrowOverlay);
   // Add download button
   const downloadBtn = document.createElement('a');
   downloadBtn.classList.add('download-btn');
   downloadBtn.href = url;
   downloadBtn.download = selectedFileName ? `${selectedFileName}.webm` : `recording-${Date.now()}.webm`;
-  downloadBtn.textContent = '\u2193';
-  downloadBtn.addEventListener('click', (ev) => {
-    ev.stopPropagation();
+  downloadBtn.textContent = '↓';
+  downloadBtn.addEventListener('click', (ev) => { ev.stopPropagation(); });
+  item.appendChild(downloadBtn);
+
   });
   item.appendChild(downloadBtn);
       // Persist recording to IndexedDB
