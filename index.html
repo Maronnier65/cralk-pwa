@@ -70,11 +70,12 @@
               </button>
               <!-- Toggle audio source button: contains both mic and note icons; JS toggles visibility -->
               <button id="toggle-source" class="icon-button" title="Source audio" disabled>
-                <svg class="icon mic-icon" viewBox="0 0 24 24" width="24" height="24">
-                  <!-- Enhanced microphone icon: larger capsule head and clear stand for recognisable shape -->
-                  <path d="M12 16c2.21 0 4-1.79 4-4V8a4 4 0 00-8 0v4c0 2.21 1.79 4 4 4z" fill="currentColor" />
-                  <path d="M20 11h-2c0 4.42-3.58 8-8 8s-8-3.58-8-8H4c0 5.25 4.09 9.6 9 9.96V23h2v-2.04C15.91 20.6 20 16.25 20 11z" fill="currentColor" />
-                </svg>
+        <svg class="icon mic-icon" viewBox="0 0 24 24" width="24" height="24">
+          <!-- more recognizable microphone icon with round head and stand -->
+          <path d="M12 3a3 3 0 0 1 3 3v5a3 3 0 0 1-6 0V6a3 3 0 0 1 3-3z" fill="currentColor" />
+          <rect x="11" y="13" width="2" height="5" fill="currentColor" />
+          <path d="M8 18h8" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+        </svg>
                 <svg class="icon note-toggle-icon" viewBox="0 0 24 24" width="24" height="24" style="display:none;">
                   <!-- reuse the quaver icon for the toggle state -->
                   <circle cx="9" cy="16" r="3" fill="currentColor" />

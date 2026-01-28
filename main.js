@@ -97,54 +97,6 @@
   }
 
   /**
-   * Generate a still image preview from the midpoint of a recorded video.
-   * Creates an off‑screen video element to load the file, seeks to the
-   * halfway mark and draws the frame onto a canvas. Returns a Promise
-   * that resolves with a data URL (PNG) or null if generation fails.
-   * This allows each recording to be represented with a thumbnail in
-   * the gallery grid.
-   *
-   * @param {string} videoUrl - The object URL for the recorded video.
-   * @returns {Promise<string|null>} A promise resolving to a PNG data URL or null.
-   */
-  function generatePreview(videoUrl) {
-    return new Promise((resolve) => {
-      const tempVideo = document.createElement('video');
-      tempVideo.src = videoUrl;
-      tempVideo.preload = 'auto';
-      tempVideo.muted = true;
-      let timeoutId;
-      const finish = (dataUrl) => {
-        clearTimeout(timeoutId);
-        resolve(dataUrl || null);
-      };
-      // Timeout in case preview cannot be generated
-      timeoutId = setTimeout(() => finish(null), 3000);
-      tempVideo.addEventListener('loadedmetadata', () => {
-        const duration = tempVideo.duration;
-        if (!isNaN(duration) && duration > 0 && duration !== Infinity) {
-          tempVideo.currentTime = duration / 2;
-        } else {
-          finish(null);
-        }
-      });
-      tempVideo.addEventListener('seeked', () => {
-        const canvas = document.createElement('canvas');
-        canvas.width = tempVideo.videoWidth;
-        canvas.height = tempVideo.videoHeight;
-        const ctx = canvas.getContext('2d');
-        try {
-          ctx.drawImage(tempVideo, 0, 0, canvas.width, canvas.height);
-          const dataUrl = canvas.toDataURL('image/png');
-          finish(dataUrl);
-        } catch (err) {
-          finish(null);
-        }
-      });
-    });
-  }
-
-  /**
    * Initialise the camera stream based on the current facing mode.
    */
   /**
@@ -160,6 +112,23 @@
       // Si un flux existe déjà et que l'on ne force pas, réutilise-le
       if (cameraStream && !force) {
         cameraPreview.srcObject = cameraStream;
+        // Ensure camera preview plays on mobile browsers; calling play() after
+        // assigning the stream helps surfaces where autoplay may not start automatically.
+        try {
+          await cameraPreview.play();
+        } catch (_) {
+          // ignore errors
+        }
+        // On certain mobile browsers (Safari on iOS), the video element may not
+        // automatically start playing after the stream is assigned, even when
+        // autoplay and playsInline are set. Explicitly calling play() ensures
+        // the preview becomes visible. Catch errors silently as some browsers
+        // may reject the promise if autoplay is blocked.
+        try {
+          await cameraPreview.play();
+        } catch (_) {
+          // ignore any playback errors
+        }
         return;
       }
       // Si on force, arrête les pistes de l'ancien flux
@@ -171,6 +140,16 @@
         audio: true,
       });
       cameraPreview.srcObject = cameraStream;
+      try {
+        await cameraPreview.play();
+      } catch (_) {
+        // ignore errors
+      }
+      try {
+        await cameraPreview.play();
+      } catch (_) {
+        // ignore errors
+      }
     } catch (err) {
       console.error('Erreur lors de l\'initialisation de la caméra :', err);
       alert("Impossible d'accéder à la caméra ou au micro. Vérifiez les autorisations du navigateur.");
@@ -404,35 +383,31 @@
     const url = URL.createObjectURL(blob);
     const item = document.createElement('div');
     item.classList.add('recording-item');
-    // Preview image: will display a still frame from the middle of the video
-    const previewImg = document.createElement('img');
-    previewImg.classList.add('recording-preview');
-    // Generate the preview asynchronously; if it fails, leave the image blank
-    generatePreview(url).then((dataUrl) => {
-      if (dataUrl) {
-        previewImg.src = dataUrl;
-      }
-    });
-    item.appendChild(previewImg);
-    // Info bar: file name and duration
-    const info = document.createElement('div');
+    // Duration and file name for overlay
     const durationSec = Math.round((Date.now() - recordingStartTime) / 1000);
-    info.textContent = `${selectedFileName} — ${formatTime(durationSec)}`;
-    info.classList.add('recording-info');
-    item.appendChild(info);
-    // Container for the video and download link, hidden by default
+    // Preview video shown in the grid
+    const preview = document.createElement('video');
+    preview.src = url;
+    preview.muted = true;
+    preview.playsInline = true;
+    preview.loop = true;
+    preview.preload = 'metadata';
+    preview.classList.add('preview-video');
+    item.appendChild(preview);
+    // Info overlay on top of the preview
+    const overlay = document.createElement('div');
+    overlay.classList.add('recording-info-overlay');
+    overlay.textContent = `${selectedFileName} — ${formatTime(durationSec)}`;
+    item.appendChild(overlay);
+    // Container for the full video and download link; hidden by default
     const videoContainer = document.createElement('div');
     videoContainer.style.display = 'none';
-    // Video element and orientation detection
+    // Full video element with controls for playback
     const recordedVideo = document.createElement('video');
     recordedVideo.controls = true;
     recordedVideo.src = url;
     recordedVideo.classList.add('recorded-video');
-    // Detect orientation of the recorded video once metadata is loaded. Add
-    // a class accordingly so CSS can adjust its sizing for portrait or
-    // landscape videos. Without this, videos may appear square or
-    // unexpectedly cropped. The event handler ensures orientation is set
-    // before the user interacts with the recording.
+    // Detect orientation of the recorded video once metadata is loaded.
     recordedVideo.addEventListener('loadedmetadata', () => {
       const vw = recordedVideo.videoWidth || 0;
       const vh = recordedVideo.videoHeight || 0;
@@ -444,64 +419,51 @@
         }
       }
     });
-    // Hide the preview automatically when playback finishes. This ensures
-    // returning to the list collapses the video back to a simple line.
+    // When the full video ends, collapse back to the preview
     recordedVideo.addEventListener('ended', () => {
       recordedVideo.pause();
       recordedVideo.currentTime = 0;
-      if (videoContainer) {
-        videoContainer.style.display = 'none';
-      }
-      // Show the preview again when playback ends
-      if (previewImg) {
-        previewImg.style.display = 'block';
-      }
+      videoContainer.style.display = 'none';
+      preview.style.display = '';
     });
-    // Also hide the preview when the user taps on the video itself. This
-    // provides a simple way to close a playing preview and return to the
-    // text-only list without relying solely on the info line. When tapped,
-    // the video pauses, resets and the container collapses.
+    // Also collapse when the user taps on the full video
     recordedVideo.addEventListener('click', () => {
       recordedVideo.pause();
       recordedVideo.currentTime = 0;
-      if (videoContainer) {
-        videoContainer.style.display = 'none';
-      }
-      if (previewImg) {
-        previewImg.style.display = 'block';
-      }
+      videoContainer.style.display = 'none';
+      preview.style.display = '';
     });
     videoContainer.appendChild(recordedVideo);
-    // Download link inside the video container
+    // Download link for the full recording
     const downloadLink = document.createElement('a');
     downloadLink.href = url;
     downloadLink.download = 'cralk-recording.webm';
     downloadLink.textContent = 'Télécharger';
     downloadLink.classList.add('download-link');
+    // Prevent toggling when clicking the download link
     downloadLink.addEventListener('click', (e) => {
-      // Prevent toggling the video when clicking the download link
       e.stopPropagation();
     });
     videoContainer.appendChild(downloadLink);
     item.appendChild(videoContainer);
-    // Clicking on either the preview image or the info line toggles playback.
-    const togglePlayback = () => {
+    // Toggle preview/full video on tap anywhere in the item
+    item.addEventListener('click', (e) => {
+      // Ignore clicks on the download link
+      if (e.target.tagName === 'A') return;
       if (videoContainer.style.display === 'none') {
-        // Show video and hide preview
-        previewImg.style.display = 'none';
+        // Show full video and hide preview
+        preview.style.display = 'none';
         videoContainer.style.display = 'block';
         recordedVideo.currentTime = 0;
         recordedVideo.play().catch(() => {});
       } else {
-        // Hide video and show preview
+        // Hide full video and reset preview
         recordedVideo.pause();
         recordedVideo.currentTime = 0;
         videoContainer.style.display = 'none';
-        previewImg.style.display = 'block';
+        preview.style.display = '';
       }
-    };
-    previewImg.addEventListener('click', togglePlayback);
-    info.addEventListener('click', togglePlayback);
+    });
     // Insert into gallery and enforce a maximum of 10 recordings
     recordingsContainer.appendChild(item);
     while (recordingsContainer.children.length > 10) {
@@ -544,6 +506,19 @@
     if (micIcon) micIcon.style.display = 'block';
     if (noteToggleIcon) noteToggleIcon.style.display = 'none';
     toggleSourceBtn.disabled = true;
+
+    // Ensure the camera preview resumes displaying the video feed after a recording.
+    // Without this, some devices may stop rendering the preview until the
+    // MediaStream is reattached. Reassigning the stream and calling play
+    // ensures the user sees the live camera again.
+    if (cameraStream) {
+      cameraPreview.srcObject = cameraStream;
+      try {
+        cameraPreview.play();
+      } catch (_) {
+        // ignore play errors (may occur if not allowed)
+      }
+    }
   }
 
   /**
@@ -602,6 +577,12 @@
     // Reuse the existing camera stream if it exists; otherwise request a new one.
     if (cameraStream) {
       cameraPreview.srcObject = cameraStream;
+      // Ensure the preview starts playing when returning to the recorder
+      try {
+        cameraPreview.play();
+      } catch (_) {
+        // ignore playback errors
+      }
     } else {
       initCamera();
     }

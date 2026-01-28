@@ -9,7 +9,10 @@
 // users receive the latest assets. Bump the version if index.html,
 // main.js, styles.css or other static files are modified.
 // Bump the cache version to force refresh after significant updates.
-const CACHE_NAME = 'cralk-cache-v25';
+// Bump the cache version to force clients to refresh and pick up the latest
+// changes. Each release should increment this suffix.
+// Increment the cache version to force clients to update after changes.
+const CACHE_NAME = 'cralk-cache-v26';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',

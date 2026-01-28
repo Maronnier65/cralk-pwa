@@ -48,7 +48,10 @@ html {
   height: 100vh;
   object-fit: cover;
   background: #000;
-  z-index: -1;
+  /* Ensure the camera video is visible behind the overlay. Using a
+     non-negative z-index prevents it from being hidden on some mobile
+     browsers. */
+  z-index: 0;
 }
 
 /* Overlay container covers the full view but allows underlying video to show */
@@ -176,10 +179,12 @@ html {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  /* Further slim the song bar and reduce its opacity.  Halve the vertical padding again
-     and lighten the background so the bar is much thinner and more transparent. */
-  padding: 0.04rem 0.35rem;
-  background: rgba(0, 0, 0, 0.2);
+  /* Make the song bar thinner: reduce vertical padding */
+  /* Make the song bar thinner and more transparent.
+     The vertical padding is reduced further and the background
+     opacity is halved again. */
+  padding: 0.04rem 0.4rem;
+  background: rgba(0, 0, 0, 0.18);
   color: #ffffff;
   border-radius: 6px;
   backdrop-filter: blur(8px);
@@ -301,24 +306,42 @@ html {
   text-decoration: none;
 }
 
-/* Gallery recording items */
-.recording-item {
-  /* Each recording item is a card within the grid; remove bottom margin since grid gap handles spacing */
+/* Preview video displayed in the recording grid. The video fills
+   its parent and uses object-fit: cover to maintain aspect while
+   filling the available space. */
+.preview-video {
   width: 100%;
-  padding: 0.4rem;
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(6px);
-  overflow: hidden;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
-/* Preview image for recordings: fills the card and maintains aspect ratio. */
-.recording-preview {
+/* Overlay containing the file name and duration for each recording
+   preview. It appears at the bottom of the grid cell and uses a
+   semi-transparent background for legibility. */
+.recording-info-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(0, 0, 0, 0.5);
+  color: #ffffff;
+  font-size: 0.75rem;
+  padding: 0.25rem;
+  text-align: center;
+  pointer-events: none;
+}
+
+/* Gallery recording items */
+.recording-item {
+  /* Each recording item is a grid cell that contains a preview video
+     and an overlay for the title/duration. Remove padding so the
+     preview fills the cell. */
   width: 100%;
-  height: auto;
-  object-fit: cover;
+  padding: 0;
   border-radius: 6px;
-  display: block;
+  background: #000;
+  overflow: hidden;
 }
 
 /* Container that holds the recorded video and download link; hidden by default */
