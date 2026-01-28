@@ -333,15 +333,37 @@ html {
 }
 
 /* Gallery recording items */
+/* Each recording item is a grid cell that contains a preview video and
+   an overlay for the title/duration. The aspect-ratio property
+   maintains a consistent vertical orientation on modern browsers. For
+   browsers that do not support aspect-ratio, a padding-top hack is
+   provided via a pseudo-element. */
 .recording-item {
-  /* Each recording item is a grid cell that contains a preview video
-     and an overlay for the title/duration. Remove padding so the
-     preview fills the cell. */
   width: 100%;
   padding: 0;
   border-radius: 6px;
   background: #000;
   overflow: hidden;
+  position: relative;
+  /* Use aspect-ratio when supported (portrait 9:16) */
+  aspect-ratio: 9 / 16;
+}
+/* Fallback for browsers without aspect-ratio support: use a pseudo-element to
+   create the correct height based on the width. Height = width * 16/9 = 177.78%. */
+.recording-item::before {
+  content: "";
+  display: block;
+  padding-top: 177.78%;
+}
+/* Position the preview and overlay absolutely so they fill the parent
+   regardless of whether aspect-ratio or the padding-top hack is used. */
+.recording-item .preview-video,
+.recording-item .recording-info-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
 }
 
 /* Container that holds the recorded video and download link; hidden by default */
@@ -442,6 +464,46 @@ body.landscape .btn-label {
   padding: 0.6rem;
   box-sizing: border-box;
   overflow-y: auto;
+}
+
+/* Modal overlay for viewing recordings one at a time. The modal covers
+   the entire viewport and uses a semi‑transparent background. The video
+   is centered within the modal. */
+.video-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.85);
+  z-index: 2000;
+  overflow: hidden;
+}
+
+/* The video displayed in the modal. It preserves aspect ratio and fits
+   within the modal with some margin. */
+#modal-video {
+  max-width: 90%;
+  max-height: 90%;
+  width: auto;
+  height: auto;
+  border-radius: 8px;
+}
+
+/* Close button for the modal */
+.close-modal {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  font-size: 2rem;
+  color: #ffffff;
+  background: none;
+  border: none;
+  cursor: pointer;
+  line-height: 1;
 }
 
 /* Grouping for left and right buttons in the bottom controls */
