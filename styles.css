@@ -334,8 +334,11 @@ html {
 
 /* Gallery recording items */
 /* Each recording item is a grid cell that contains a preview video and
+ /* Gallery recording items */
+//* Gallery recording items */
+/* Each recording item is a grid cell that contains a preview video and
    an overlay for the title/duration. The aspect-ratio property
-   maintains a consistent vertical orientation on modern browsers. For
+   maintains a consistent square orientation on modern browsers. For
    browsers that do not support aspect-ratio, a padding-top hack is
    provided via a pseudo-element. */
 .recording-item {
@@ -345,8 +348,54 @@ html {
   background: #000;
   overflow: hidden;
   position: relative;
-  /* Use aspect-ratio when supported (portrait 9:16) */
-  aspect-ratio: 9 / 16;
+  /* Use aspect-ratio when supported (square 1:1) */
+  aspect-ratio: 1 / 1;
+}
+/* Fallback for browsers without aspect-ratio support: use a pseudo-element to
+   create the correct height based on the width. Height = width * 1/1 = 100%. */
+.recording-item::before {
+  content: "";
+  display: block;
+  padding-top: 100%;
+}
+   maintains a consistent square orientation on modern browsers. For
+   browsers that do not support aspect-ratio, a padding-top hack is
+   provided via a pseudo-element. */
+.recording-item {
+  width: 100%;
+  padding: 0;
+  border-radius: 6px;
+  background: #000;
+  overflow: hidden;
+  position: relative;
+  /* Use aspect-ratio when supported (square 1:1) */
+  aspect-ratio: 1 / 1;
+}
+/* Fallback for browsers without aspect-ratio support: use a pseudo-element to
+   create the correct height based on the width. Height = width * 1/1 = 100%. */
+.recording-item::before {
+  content: "";
+  display: block;
+  padding-top: 100%;
+}
+ Fallback for browsers without aspect-ratio support: use a pseudo-element to
+    create the correct height based on the width. Height = width * 1/1 = 100%. */
+  .recording-item::before {
+    content: "";
+    display: block;
+    padding-top: 100%;
+  }cal orientation on modern browsers. For
+   browsers that do not support aspect-ratio, a padding-top hack is
+   provided via a pseudo-element. */
+.recording-item {
+  width: 100%;
+  padding: 0;
+  border-radius: 6px;
+  background: #000;
+  overflow: hidden;
+  position: relative;
+    /* Use aspect-ratio when supported (square 1:1) */
+  aspect-ratio: 1 / 1;
 }
 /* Fallback for browsers without aspect-ratio support: use a pseudo-element to
    create the correct height based on the width. Height = width * 16/9 = 177.78%. */
