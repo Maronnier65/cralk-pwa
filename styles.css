@@ -176,10 +176,10 @@ html {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  /* Make the song bar thinner: reduce vertical padding */
-  padding: 0.08rem 0.4rem;
-  /* Make the song bar more transparent (half the previous opacity) */
-  background: rgba(0, 0, 0, 0.37);
+  /* Further slim the song bar and reduce its opacity.  Halve the vertical padding again
+     and lighten the background so the bar is much thinner and more transparent. */
+  padding: 0.04rem 0.35rem;
+  background: rgba(0, 0, 0, 0.2);
   color: #ffffff;
   border-radius: 6px;
   backdrop-filter: blur(8px);
@@ -310,6 +310,15 @@ html {
   background: rgba(255, 255, 255, 0.05);
   backdrop-filter: blur(6px);
   overflow: hidden;
+}
+
+/* Preview image for recordings: fills the card and maintains aspect ratio. */
+.recording-preview {
+  width: 100%;
+  height: auto;
+  object-fit: cover;
+  border-radius: 6px;
+  display: block;
 }
 
 /* Container that holds the recorded video and download link; hidden by default */

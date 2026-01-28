@@ -97,6 +97,54 @@
   }
 
   /**
+   * Generate a still image preview from the midpoint of a recorded video.
+   * Creates an off‑screen video element to load the file, seeks to the
+   * halfway mark and draws the frame onto a canvas. Returns a Promise
+   * that resolves with a data URL (PNG) or null if generation fails.
+   * This allows each recording to be represented with a thumbnail in
+   * the gallery grid.
+   *
+   * @param {string} videoUrl - The object URL for the recorded video.
+   * @returns {Promise<string|null>} A promise resolving to a PNG data URL or null.
+   */
+  function generatePreview(videoUrl) {
+    return new Promise((resolve) => {
+      const tempVideo = document.createElement('video');
+      tempVideo.src = videoUrl;
+      tempVideo.preload = 'auto';
+      tempVideo.muted = true;
+      let timeoutId;
+      const finish = (dataUrl) => {
+        clearTimeout(timeoutId);
+        resolve(dataUrl || null);
+      };
+      // Timeout in case preview cannot be generated
+      timeoutId = setTimeout(() => finish(null), 3000);
+      tempVideo.addEventListener('loadedmetadata', () => {
+        const duration = tempVideo.duration;
+        if (!isNaN(duration) && duration > 0 && duration !== Infinity) {
+          tempVideo.currentTime = duration / 2;
+        } else {
+          finish(null);
+        }
+      });
+      tempVideo.addEventListener('seeked', () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = tempVideo.videoWidth;
+        canvas.height = tempVideo.videoHeight;
+        const ctx = canvas.getContext('2d');
+        try {
+          ctx.drawImage(tempVideo, 0, 0, canvas.width, canvas.height);
+          const dataUrl = canvas.toDataURL('image/png');
+          finish(dataUrl);
+        } catch (err) {
+          finish(null);
+        }
+      });
+    });
+  }
+
+  /**
    * Initialise the camera stream based on the current facing mode.
    */
   /**
@@ -356,6 +404,16 @@
     const url = URL.createObjectURL(blob);
     const item = document.createElement('div');
     item.classList.add('recording-item');
+    // Preview image: will display a still frame from the middle of the video
+    const previewImg = document.createElement('img');
+    previewImg.classList.add('recording-preview');
+    // Generate the preview asynchronously; if it fails, leave the image blank
+    generatePreview(url).then((dataUrl) => {
+      if (dataUrl) {
+        previewImg.src = dataUrl;
+      }
+    });
+    item.appendChild(previewImg);
     // Info bar: file name and duration
     const info = document.createElement('div');
     const durationSec = Math.round((Date.now() - recordingStartTime) / 1000);
@@ -394,6 +452,10 @@
       if (videoContainer) {
         videoContainer.style.display = 'none';
       }
+      // Show the preview again when playback ends
+      if (previewImg) {
+        previewImg.style.display = 'block';
+      }
     });
     // Also hide the preview when the user taps on the video itself. This
     // provides a simple way to close a playing preview and return to the
@@ -404,6 +466,9 @@
       recordedVideo.currentTime = 0;
       if (videoContainer) {
         videoContainer.style.display = 'none';
+      }
+      if (previewImg) {
+        previewImg.style.display = 'block';
       }
     });
     videoContainer.appendChild(recordedVideo);
@@ -419,20 +484,24 @@
     });
     videoContainer.appendChild(downloadLink);
     item.appendChild(videoContainer);
-    // Clicking on the info line toggles the video container visibility and controls playback
-    info.addEventListener('click', () => {
+    // Clicking on either the preview image or the info line toggles playback.
+    const togglePlayback = () => {
       if (videoContainer.style.display === 'none') {
-        // Show video and play from beginning
+        // Show video and hide preview
+        previewImg.style.display = 'none';
         videoContainer.style.display = 'block';
         recordedVideo.currentTime = 0;
         recordedVideo.play().catch(() => {});
       } else {
-        // Hide video and reset playback
+        // Hide video and show preview
         recordedVideo.pause();
         recordedVideo.currentTime = 0;
         videoContainer.style.display = 'none';
+        previewImg.style.display = 'block';
       }
-    });
+    };
+    previewImg.addEventListener('click', togglePlayback);
+    info.addEventListener('click', togglePlayback);
     // Insert into gallery and enforce a maximum of 10 recordings
     recordingsContainer.appendChild(item);
     while (recordingsContainer.children.length > 10) {

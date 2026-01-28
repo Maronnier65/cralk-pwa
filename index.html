@@ -70,17 +70,11 @@
               </button>
               <!-- Toggle audio source button: contains both mic and note icons; JS toggles visibility -->
               <button id="toggle-source" class="icon-button" title="Source audio" disabled>
-        <svg class="icon mic-icon" viewBox="0 0 24 24" width="24" height="24">
-          <!-- simplified microphone icon for better legibility -->
-          <!-- capsule head -->
-          <path d="M12 6a3.5 3.5 0 0 1 3.5 3.5v4a3.5 3.5 0 0 1-7 0v-4A3.5 3.5 0 0 1 12 6z" fill="currentColor" />
-          <!-- handle -->
-          <rect x="10.5" y="13.5" width="3" height="4" fill="currentColor" />
-          <!-- stand pole -->
-          <line x1="12" y1="17.5" x2="12" y2="20" stroke="currentColor" stroke-width="2" />
-          <!-- stand base -->
-          <line x1="9.5" y1="20" x2="14.5" y2="20" stroke="currentColor" stroke-width="2" />
-        </svg>
+                <svg class="icon mic-icon" viewBox="0 0 24 24" width="24" height="24">
+                  <!-- Enhanced microphone icon: larger capsule head and clear stand for recognisable shape -->
+                  <path d="M12 16c2.21 0 4-1.79 4-4V8a4 4 0 00-8 0v4c0 2.21 1.79 4 4 4z" fill="currentColor" />
+                  <path d="M20 11h-2c0 4.42-3.58 8-8 8s-8-3.58-8-8H4c0 5.25 4.09 9.6 9 9.96V23h2v-2.04C15.91 20.6 20 16.25 20 11z" fill="currentColor" />
+                </svg>
                 <svg class="icon note-toggle-icon" viewBox="0 0 24 24" width="24" height="24" style="display:none;">
                   <!-- reuse the quaver icon for the toggle state -->
                   <circle cx="9" cy="16" r="3" fill="currentColor" />
