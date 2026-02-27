@@ -1,4 +1,4 @@
-/* Basic reset and styling */
+e/* Basic reset and styling */
 :root {
   --primary-color: #5f4bc2;
   --secondary-color: #9f67cc;
@@ -594,3 +594,9 @@ body.landscape .btn-label {
   background: rgba(0, 0, 0, 0.7);
 }
 
+.splash-version {
+  font-size: 1rem;
+  opacity: 0.8;
+  margin-top: 0.2rem;
+  color: rgba(255, 255, 255, 0.9);
+}
