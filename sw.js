@@ -12,10 +12,10 @@
 // Bump the cache version to force clients to refresh and pick up the latest
 // changes. Each release should increment this suffix.
 // Increment the cache version to force clients to update after changes.
-const CACHE_NAME = 'cralk-cache-v29';
+const CACHE_NAME = 'cralk-cache-v30
 const ASSETS_TO_CACHE = [
   '/',
-  '/index.html',
+  '/index.html
   '/styles.css',
   '/main.js',
   '/manifest.json',
