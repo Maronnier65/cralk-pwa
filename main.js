@@ -1,4 +1,4 @@
-/*
+e/*
  * main.js – CRALK PWA v6
  *
  * This script implements a camera‑first recording interface that allows users
@@ -301,10 +301,7 @@
     fileInput.disabled = true;
     toggleSourceBtn.disabled = true;
     // Start the song after 3 seconds of recording mic audio.
-    setTimeout(() => {
-      startSong();
-    }, 3000);
-  }
+    startSong();
 
   /**
    * Stop the current recording, clean up audio resources and UI, and
