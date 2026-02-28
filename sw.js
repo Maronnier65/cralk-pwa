@@ -1,5 +1,5 @@
-e/*
- * Service Worker for CRALK PWA
+/*
+ * Service worker for CRALK PWA
  *
  * This service worker implements a basic offline-first strategy. It caches
  * essential assets on installation and returns cached versions when offline.
@@ -9,13 +9,12 @@ e/*
 // users receive the latest assets. Bump the version if index.html,
 // main.js, styles.css or other static files are modified.
 // Bump the cache version to force refresh after significant updates.
-// Bump the cache version to force clients to refresh and pick up the latest
-// changes. Each release should increment this suffix.
-// Increment the cache version to force clients to update after changes.
-const CACHE_NAME = 'cralk-cache-v31';
+// Each release should increment this suffix.
+const CACHE_NAME = 'cralk-cache-v32';
+
 const ASSETS_TO_CACHE = [
   '/',
-  '/index.html
+  '/index.html',
   '/styles.css',
   '/main.js',
   '/manifest.json',
@@ -60,6 +59,7 @@ self.addEventListener('fetch', (event) => {
   if (request.method !== 'GET' || !request.url.startsWith(self.location.origin)) {
     return;
   }
+
   event.respondWith(
     caches.match(request).then((cachedResponse) => {
       return (
