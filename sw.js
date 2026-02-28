@@ -1,4 +1,4 @@
-/*
+e/*
  * Service Worker for CRALK PWA
  *
  * This service worker implements a basic offline-first strategy. It caches
@@ -12,7 +12,7 @@
 // Bump the cache version to force clients to refresh and pick up the latest
 // changes. Each release should increment this suffix.
 // Increment the cache version to force clients to update after changes.
-const CACHE_NAME = 'cralk-cache-v30
+const CACHE_NAME = 'cralk-cache-v31';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html
