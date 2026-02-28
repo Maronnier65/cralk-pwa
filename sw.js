@@ -10,7 +10,7 @@
 // main.js, styles.css or other static files are modified.
 // Bump the cache version to force refresh after significant updates.
 // Each release should increment this suffix.
-const CACHE_NAME = 'cralk-cache-v32';
+const CACHE_NAME = 'cralk-cache-v33';
 
 const ASSETS_TO_CACHE = [
   '/',
