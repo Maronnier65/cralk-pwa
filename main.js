@@ -1,4 +1,4 @@
-e/*
+/*
  * main.js – CRALK PWA v6
  *
  * This script implements a camera‑first recording interface that allows users
