@@ -26,6 +26,17 @@
   const toggleSourceBtn = document.getElementById('toggle-source');
   const recordingsContainer = document.getElementById('gallery-recordings');
   const appContainer = document.getElementById('app-container');
+
+  // Modal elements for viewing recordings with swipe navigation
+  const videoModal = document.getElementById('video-modal');
+  const modalVideo = document.getElementById('modal-video');
+  const closeModalBtn = document.getElementById('close-modal');
+
+  // Keep a separate list of recordings with their metadata. Each entry has
+  // { url, fileName, duration }. This array is used by the modal to
+  // navigate between recordings without relying on DOM structure.
+  const recordingsList = [];
+  let currentModalIndex = null;
   // Icons inside the toggle button
   const micIcon = toggleSourceBtn.querySelector('.mic-icon');
   const noteToggleIcon = toggleSourceBtn.querySelector('.note-toggle-icon');
@@ -112,6 +123,23 @@
       // Si un flux existe déjà et que l'on ne force pas, réutilise-le
       if (cameraStream && !force) {
         cameraPreview.srcObject = cameraStream;
+        // Ensure camera preview plays on mobile browsers; calling play() after
+        // assigning the stream helps surfaces where autoplay may not start automatically.
+        try {
+          await cameraPreview.play();
+        } catch (_) {
+          // ignore errors
+        }
+        // On certain mobile browsers (Safari on iOS), the video element may not
+        // automatically start playing after the stream is assigned, even when
+        // autoplay and playsInline are set. Explicitly calling play() ensures
+        // the preview becomes visible. Catch errors silently as some browsers
+        // may reject the promise if autoplay is blocked.
+        try {
+          await cameraPreview.play();
+        } catch (_) {
+          // ignore any playback errors
+        }
         return;
       }
       // Si on force, arrête les pistes de l'ancien flux
@@ -123,6 +151,16 @@
         audio: true,
       });
       cameraPreview.srcObject = cameraStream;
+      try {
+        await cameraPreview.play();
+      } catch (_) {
+        // ignore errors
+      }
+      try {
+        await cameraPreview.play();
+      } catch (_) {
+        // ignore errors
+      }
     } catch (err) {
       console.error('Erreur lors de l\'initialisation de la caméra :', err);
       alert("Impossible d'accéder à la caméra ou au micro. Vérifiez les autorisations du navigateur.");
@@ -194,14 +232,17 @@
    */
   function startSong() {
     if (!audioPlayer.src) return;
-    // Reset both audio elements to the beginning
+    // Reset both audio elements to the beginning and unmute the user's player
     audioPlayer.currentTime = 0;
+    // Unmute the audio element now that playback should be audible
+    audioPlayer.muted = false;
     if (songClone) songClone.currentTime = 0;
     // Mute the microphone and unmute the song in the recording
     microGain.gain.value = 0;
     songGain.gain.value = 1;
-    // Start playback for both the user (audioPlayer) and the recording clone
-    audioPlayer.play().catch((err) => console.warn('Erreur lecture (utilisateur) :', err));
+    // Start playback for the recording clone. The user's audio element is
+    // already playing (triggered at the start of recording), so we only
+    // need to start the clone if it exists.
     if (songClone) {
       songClone.play().catch((err) => console.warn('Erreur lecture (enregistrement) :', err));
     }
@@ -239,6 +280,14 @@
       alert('Veuillez d\'abord sélectionner une chanson.');
       return;
     }
+    // Prime the song playback during the countdown. Playing the audio element
+    // while muted ensures browsers (particularly Safari) consider the playback
+    // to be user‑initiated. We reset the currentTime and mute the element
+    // so it is inaudible during the countdown. When the song starts, it will
+    // be unmuted in startSong().
+    audioPlayer.currentTime = 0;
+    audioPlayer.muted = true;
+    audioPlayer.play().catch(() => {});
     // Show countdown overlay for 3 seconds before starting any capture
     await runCountdown(3);
     // Reset state
@@ -266,7 +315,7 @@
     try {
       songSource = audioContext.createMediaElementSource(songClone);
     } catch (err) {
-      console.warn('Erreur création MediaElementSource pour la chanson :', err);
+      console.warn('Erreur création MediaElementSource pour la chanson :', err);
       songSource = null;
     }
     songGain = audioContext.createGain();
@@ -300,8 +349,14 @@
     recordButton.classList.add('recording');
     fileInput.disabled = true;
     toggleSourceBtn.disabled = true;
-    // Start the song after 3 seconds of recording mic audio.
+    // Immediately start the song once the recording begins. The countdown
+    // duration is not captured in the final video. By calling startSong()
+    // here, the music will begin at the same time as the recording and
+    // the microphone is muted. The toggle button can then be used to
+    // switch between mic and song without needing to manually start the
+    // music.
     startSong();
+  }
 
   /**
    * Stop the current recording, clean up audio resources and UI, and
@@ -351,11 +406,14 @@
       type: mediaRecorder && mediaRecorder.mimeType ? mediaRecorder.mimeType : 'video/webm',
     });
     const url = URL.createObjectURL(blob);
+    // Compute duration based on recording start time
+    const durationSec = Math.round((Date.now() - recordingStartTime) / 1000);
+    // Add to our recordings list for modal navigation
+    const recIndex = recordingsList.length;
+    recordingsList.push({ url, fileName: selectedFileName, duration: durationSec });
+    // Create grid item with preview and overlay
     const item = document.createElement('div');
     item.classList.add('recording-item');
-    // Duration and file name for overlay
-    const durationSec = Math.round((Date.now() - recordingStartTime) / 1000);
-    // Preview video shown in the grid
     const preview = document.createElement('video');
     preview.src = url;
     preview.muted = true;
@@ -364,86 +422,35 @@
     preview.preload = 'metadata';
     preview.classList.add('preview-video');
     item.appendChild(preview);
-    // Info overlay on top of the preview
     const overlay = document.createElement('div');
     overlay.classList.add('recording-info-overlay');
     overlay.textContent = `${selectedFileName} — ${formatTime(durationSec)}`;
     item.appendChild(overlay);
-    // Container for the full video and download link; hidden by default
-    const videoContainer = document.createElement('div');
-    videoContainer.style.display = 'none';
-    // Full video element with controls for playback
-    const recordedVideo = document.createElement('video');
-    recordedVideo.controls = true;
-    recordedVideo.src = url;
-    recordedVideo.classList.add('recorded-video');
-    // Detect orientation of the recorded video once metadata is loaded.
-    recordedVideo.addEventListener('loadedmetadata', () => {
-      const vw = recordedVideo.videoWidth || 0;
-      const vh = recordedVideo.videoHeight || 0;
-      if (vw && vh) {
-        if (vw > vh) {
-          recordedVideo.classList.add('landscape');
-        } else {
-          recordedVideo.classList.add('portrait');
-        }
-      }
+    // Start playing the preview silently once it's loaded
+    preview.addEventListener('loadeddata', () => {
+      preview.play().catch(() => {});
     });
-    // When the full video ends, collapse back to the preview
-    recordedVideo.addEventListener('ended', () => {
-      recordedVideo.pause();
-      recordedVideo.currentTime = 0;
-      videoContainer.style.display = 'none';
-      preview.style.display = '';
-    });
-    // Also collapse when the user taps on the full video
-    recordedVideo.addEventListener('click', () => {
-      recordedVideo.pause();
-      recordedVideo.currentTime = 0;
-      videoContainer.style.display = 'none';
-      preview.style.display = '';
-    });
-    videoContainer.appendChild(recordedVideo);
-    // Download link for the full recording
-    const downloadLink = document.createElement('a');
-    downloadLink.href = url;
-    downloadLink.download = 'cralk-recording.webm';
-    downloadLink.textContent = 'Télécharger';
-    downloadLink.classList.add('download-link');
-    // Prevent toggling when clicking the download link
-    downloadLink.addEventListener('click', (e) => {
-      e.stopPropagation();
-    });
-    videoContainer.appendChild(downloadLink);
-    item.appendChild(videoContainer);
-    // Toggle preview/full video on tap anywhere in the item
+    // When the item is tapped, open the modal at this recording's index
     item.addEventListener('click', (e) => {
-      // Ignore clicks on the download link
+      // Ignore clicks on download links (if any)
       if (e.target.tagName === 'A') return;
-      if (videoContainer.style.display === 'none') {
-        // Show full video and hide preview
-        preview.style.display = 'none';
-        videoContainer.style.display = 'block';
-        recordedVideo.currentTime = 0;
-        recordedVideo.play().catch(() => {});
-      } else {
-        // Hide full video and reset preview
-        recordedVideo.pause();
-        recordedVideo.currentTime = 0;
-        videoContainer.style.display = 'none';
-        preview.style.display = '';
-      }
+      openModal(recIndex);
     });
-    // Insert into gallery and enforce a maximum of 10 recordings
     recordingsContainer.appendChild(item);
+    // Limit to 10 recordings in the gallery
     while (recordingsContainer.children.length > 10) {
-      recordingsContainer.removeChild(recordingsContainer.firstChild);
+      // Remove the first child and revoke its URL
+      const child = recordingsContainer.firstChild;
+      const videoEl = child.querySelector('video');
+      if (videoEl && videoEl.src) {
+        URL.revokeObjectURL(videoEl.src);
+      }
+      recordingsContainer.removeChild(child);
+      // Also remove from recordingsList
+      recordingsList.shift();
     }
-    // Switch to gallery view for a moment to ensure the list is updated
+    // Immediately show and then hide the gallery to refresh layout
     showGallery();
-    // After inserting the item, immediately return to the recorder view to allow
-    // the user to start a new recording without a swipe gesture. Users can
-    // still access the gallery by swiping.
     showRecorder();
 
     // Cleanup audio context and sources so a new recording can start
@@ -476,6 +483,19 @@
     if (micIcon) micIcon.style.display = 'block';
     if (noteToggleIcon) noteToggleIcon.style.display = 'none';
     toggleSourceBtn.disabled = true;
+
+    // Ensure the camera preview resumes displaying the video feed after a recording.
+    // Without this, some devices may stop rendering the preview until the
+    // MediaStream is reattached. Reassigning the stream and calling play
+    // ensures the user sees the live camera again.
+    if (cameraStream) {
+      cameraPreview.srcObject = cameraStream;
+      try {
+        cameraPreview.play();
+      } catch (_) {
+        // ignore play errors (may occur if not allowed)
+      }
+    }
   }
 
   /**
@@ -534,6 +554,12 @@
     // Reuse the existing camera stream if it exists; otherwise request a new one.
     if (cameraStream) {
       cameraPreview.srcObject = cameraStream;
+      // Ensure the preview starts playing when returning to the recorder
+      try {
+        cameraPreview.play();
+      } catch (_) {
+        // ignore playback errors
+      }
     } else {
       initCamera();
     }
@@ -600,6 +626,8 @@
         }
         recordingsContainer.removeChild(child);
       }
+      // Clear the recordings list as well
+      recordingsList.splice(0, recordingsList.length);
     });
   }
 
@@ -607,30 +635,35 @@
   if (downloadAllBtn) {
     downloadAllBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      const items = Array.from(recordingsContainer.children);
-      if (items.length === 0) return;
-      // Trigger downloads sequentially to give the browser time to open each save dialog.
-      items.forEach((item, idx) => {
-        const link = item.querySelector('a.download-link');
-        if (link) {
-          setTimeout(() => {
-            try {
-              link.click();
-            } catch (err) {
-              console.warn('Erreur lors du clic de téléchargement :', err);
-            }
-          }, idx * 300);
-        }
+      if (recordingsList.length === 0) return;
+      // Create hidden anchor and trigger downloads sequentially. Use the recordingsList
+      recordingsList.forEach((rec, idx) => {
+        setTimeout(() => {
+          const a = document.createElement('a');
+          a.href = rec.url;
+          a.download = 'cralk-recording.webm';
+          a.style.display = 'none';
+          document.body.appendChild(a);
+          try {
+            a.click();
+          } catch (err) {
+            console.warn('Erreur lors du clic de téléchargement :', err);
+          }
+          document.body.removeChild(a);
+        }, idx * 300);
       });
-      // Remove all recordings after downloads start, allowing a delay for the last click
-      const totalDelay = items.length * 300 + 800;
+      // After the last download, clear all recordings and the list
+      const totalDelay = recordingsList.length * 300 + 800;
       setTimeout(() => {
         while (recordingsContainer.firstChild) {
           const child = recordingsContainer.firstChild;
           const videoEl = child.querySelector('video');
-          if (videoEl && videoEl.src) URL.revokeObjectURL(videoEl.src);
+          if (videoEl && videoEl.src) {
+            URL.revokeObjectURL(videoEl.src);
+          }
           recordingsContainer.removeChild(child);
         }
+        recordingsList.splice(0, recordingsList.length);
       }, totalDelay);
     });
   }
@@ -684,7 +717,7 @@
     window.addEventListener('load', () => {
       navigator.serviceWorker
         .register('/sw.js')
-        .catch((err) => console.error('Échec enregistrement ServiceWorker :', err));
+        .catch((err) => console.error('Échec enregistrement ServiceWorker :', err));
     });
   }
 
@@ -703,4 +736,97 @@
   updateOrientationClass();
   window.addEventListener('orientationchange', updateOrientationClass);
   window.addEventListener('resize', updateOrientationClass);
+
+  // ----- Modal functions for viewing recordings -----
+
+  /**
+   * Open the modal to view a recording at the given index. Loads the video
+   * source, plays it and updates the current index. If the index is
+   * invalid, the modal is not displayed.
+   * @param {number} index
+   */
+  function openModal(index) {
+    const rec = recordingsList[index];
+    if (!rec) return;
+    // Stop any currently playing modal video
+    if (!modalVideo.paused) {
+      modalVideo.pause();
+    }
+    modalVideo.src = rec.url;
+    modalVideo.currentTime = 0;
+    modalVideo.play().catch(() => {});
+    videoModal.style.display = 'flex';
+    currentModalIndex = index;
+  }
+
+  /**
+   * Close the modal and stop playback of the current video.
+   */
+  function closeModal() {
+    if (!modalVideo.paused) {
+      modalVideo.pause();
+    }
+    videoModal.style.display = 'none';
+    currentModalIndex = null;
+  }
+
+  /**
+   * Show the next recording in the modal. Wraps around at the end.
+   */
+  function nextModal() {
+    if (currentModalIndex === null) return;
+    let nextIndex = currentModalIndex + 1;
+    if (nextIndex >= recordingsList.length) nextIndex = 0;
+    openModal(nextIndex);
+  }
+
+  /**
+   * Show the previous recording in the modal. Wraps around to the last.
+   */
+  function prevModal() {
+    if (currentModalIndex === null) return;
+    let prevIndex = currentModalIndex - 1;
+    if (prevIndex < 0) prevIndex = recordingsList.length - 1;
+    openModal(prevIndex);
+  }
+
+  // Close the modal when the close button is clicked
+  if (closeModalBtn) {
+    closeModalBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      closeModal();
+    });
+  }
+
+  // Close the modal when tapping outside the video element
+  if (videoModal) {
+    videoModal.addEventListener('click', (e) => {
+      // Only close if click occurs on the overlay itself, not the video or buttons
+      if (e.target === videoModal) {
+        closeModal();
+      }
+    });
+  }
+
+  // Swipe detection within the modal for navigating between recordings
+  let modalStartX = null;
+  if (videoModal) {
+    videoModal.addEventListener('touchstart', (e) => {
+      if (e.changedTouches.length > 0) {
+        modalStartX = e.changedTouches[0].clientX;
+      }
+    }, { passive: true });
+    videoModal.addEventListener('touchend', (e) => {
+      if (modalStartX === null) return;
+      const diffX = e.changedTouches[0].clientX - modalStartX;
+      if (Math.abs(diffX) > 50) {
+        if (diffX < 0) {
+          nextModal();
+        } else {
+          prevModal();
+        }
+      }
+      modalStartX = null;
+    }, { passive: true });
+  }
 })();
